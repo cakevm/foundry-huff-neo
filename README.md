@@ -12,12 +12,12 @@ A [foundry](https://github.com/foundry-rs/foundry) library for working with [huf
 
 First, install the [huff compiler](https://github.com/huff-language/huff-rs) by running:
 ```
-curl -L get.huff.sh | bash
+curl -L https://raw.githubusercontent.com/cakevm/huff-neo/main/hnc-up/install | bash
 ```
 
 Then, install this library with [forge](https://github.com/foundry-rs/foundry):
 ```
-forge install huff-language/foundry-huff
+forge install cakevm/foundry-huff-neo
 ```
 
 
@@ -26,7 +26,7 @@ forge install huff-language/foundry-huff
 The HuffDeployer is a Solidity library that takes a filename and deploys the corresponding Huff contract, returning the address that the bytecode was deployed to. To use it, simply import it into your file by doing:
 
 ```js
-import {HuffDeployer} from "foundry-huff/HuffDeployer.sol";
+import {HuffDeployer} from "foundry-huff-neo/HuffDeployer.sol";
 ```
 
 To compile contracts, you can use `HuffDeployer.deploy(string fileName)`, which takes in a single string representing the filename's path relative to the `src` directory. Note that the file ending, i.e. `.huff`, must be omitted.
@@ -36,7 +36,7 @@ Here is an example deployment (where the contract is located in [`src/test/contr
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity >=0.7.0 <0.9.0;
 
-import {HuffDeployer} from "foundry-huff/HuffDeployer";
+import {HuffDeployer} from "foundry-huff-neo/HuffDeployer";
 
 interface Number {
   function setNumber(uint256) external;
@@ -62,7 +62,7 @@ For example, to deploy the contract [`src/test/contracts/Constructor.huff`](src/
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity >=0.7.0 <0.9.0;
 
-import {HuffDeployer} from "foundry-huff/HuffDeployer";
+import {HuffDeployer} from "foundry-huff-neo/HuffDeployer";
 
 interface Constructor {
   function getArgOne() external returns (address);
@@ -108,7 +108,7 @@ Let's use the huff contract [`src/test/contracts/NoConstructor.huff`](./src/test
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity >=0.7.0 <0.9.0;
 
-import {HuffDeployer} from "foundry-huff/HuffDeployer";
+import {HuffDeployer} from "foundry-huff-neo/HuffDeployer";
 
 interface Constructor {
   function getArgOne() external returns (address);

@@ -4,7 +4,7 @@ out = 'out'
 libs = ['lib']
 ffi = true
 fuzz_runs = 2_000
-solc_version = '0.8.20'
-evm_version = 'shanghai'
+solc_version = '0.8.28'
+evm_version = 'cancun'
 [fmt]
 line_length = 100

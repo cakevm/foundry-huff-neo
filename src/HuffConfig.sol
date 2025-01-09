@@ -100,18 +100,6 @@ contract HuffConfig {
         return this;
     }
 
-    /// @notice Checks for huffc binary conflicts
-    function binary_check() public {
-        string[] memory bincheck = new string[](1);
-        bincheck[0] = "./lib/foundry-huff/scripts/binary_check.sh";
-        bytes memory retData = vm.ffi(bincheck);
-        bytes8 first_bytes = retData[0];
-        bool decoded = first_bytes == bytes8(hex"01");
-        require(
-            decoded, "Invalid huffc binary. Run `curl -L get.huff.sh | bash` and `huffup` to fix."
-        );
-    }
-
     function bytes32ToString(bytes32 x) internal pure returns (string memory) {
         string memory result;
         for (uint256 j = 0; j < x.length; j++) {
@@ -144,8 +132,6 @@ contract HuffConfig {
 
     /// @notice Get the creation bytecode of a contract
     function creation_code(string memory file) public payable returns (bytes memory bytecode) {
-        binary_check();
-
         // Split the file into its parts
         strings.slice memory s = file.toSlice();
         strings.slice memory delim = "/".toSlice();
@@ -156,7 +142,7 @@ contract HuffConfig {
 
         // Get the system time with our script
         string[] memory time = new string[](1);
-        time[0] = "./lib/foundry-huff/scripts/rand_bytes.sh";
+        time[0] = "./lib/foundry-huff-neo/scripts/rand_bytes.sh";
         bytes memory retData = vm.ffi(time);
         string memory rand_bytes = bytes32ToString(keccak256(abi.encode(bytes32(retData))));
 
@@ -174,14 +160,14 @@ contract HuffConfig {
         // Paste the code in a new temp file
         string[] memory create_cmds = new string[](3);
         // TODO: create_cmds[0] = "$(find . -name \"file_writer.sh\")";
-        create_cmds[0] = "./lib/foundry-huff/scripts/file_writer.sh";
+        create_cmds[0] = "./lib/foundry-huff-neo/scripts/file_writer.sh";
         create_cmds[1] = string.concat("src/", tempFile, ".huff");
         create_cmds[2] = string.concat(code, "\n");
         vm.ffi(create_cmds);
 
         // Append the real code to the temp file
         string[] memory append_cmds = new string[](3);
-        append_cmds[0] = "./lib/foundry-huff/scripts/read_and_append.sh";
+        append_cmds[0] = "./lib/foundry-huff-neo/scripts/read_and_append.sh";
         append_cmds[1] = string.concat("src/", tempFile, ".huff");
         append_cmds[2] = string.concat("src/", file, ".huff");
         vm.ffi(append_cmds);
@@ -199,7 +185,7 @@ contract HuffConfig {
             }
         }
 
-        cmds[0] = "huffc";
+        cmds[0] = "hnc";
         cmds[1] = string(string.concat("src/", tempFile, ".huff"));
         cmds[2] = "-b";
         cmds[3] = "-e";
