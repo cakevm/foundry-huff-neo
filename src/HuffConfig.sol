@@ -7,6 +7,8 @@ import {strings} from "stringutils/src/strings.sol";
 contract HuffConfig {
     using strings for *;
 
+    error HuffNeoCompilerFailed(string message);
+
     /// @notice Initializes cheat codes in order to use ffi to compile Huff contracts
     Vm public constant vm = Vm(address(bytes20(uint160(uint256(keccak256("hevm cheat code"))))));
 
@@ -100,14 +102,6 @@ contract HuffConfig {
         return this;
     }
 
-    function bytes32ToString(bytes32 x) internal pure returns (string memory) {
-        string memory result;
-        for (uint256 j = 0; j < x.length; j++) {
-            result = string.concat(result, string(abi.encodePacked(uint8(x[j]) % 26 + 97)));
-        }
-        return result;
-    }
-
     function bytesToString(bytes memory data) public pure returns (string memory) {
         bytes memory alphabet = "0123456789abcdef";
 
@@ -144,7 +138,7 @@ contract HuffConfig {
         string[] memory time = new string[](1);
         time[0] = "./lib/foundry-huff-neo/scripts/rand_bytes.sh";
         bytes memory retData = vm.ffi(time);
-        string memory rand_bytes = bytes32ToString(keccak256(abi.encode(bytes32(retData))));
+        string memory rand_bytes = bytesToString(abi.encodePacked(keccak256(abi.encode(bytes32(retData)))));
 
         // Re-concatenate the file with a "__TEMP__" prefix
         string memory tempFile = parts[0];
@@ -159,7 +153,6 @@ contract HuffConfig {
 
         // Paste the code in a new temp file
         string[] memory create_cmds = new string[](3);
-        // TODO: create_cmds[0] = "$(find . -name \"file_writer.sh\")";
         create_cmds[0] = "./lib/foundry-huff-neo/scripts/file_writer.sh";
         create_cmds[1] = string.concat("src/", tempFile, ".huff");
         create_cmds[2] = string.concat(code, "\n");
@@ -172,8 +165,10 @@ contract HuffConfig {
         append_cmds[2] = string.concat("src/", file, ".huff");
         vm.ffi(append_cmds);
 
-        /// Create a list of strings with the commands necessary to compile Huff contracts
+        // Create a list of strings with the commands necessary to compile Huff contracts
         string[] memory cmds = new string[](5);
+
+        // Check if there are any constant overrides
         if (const_overrides.length > 0) {
             cmds = new string[](6 + const_overrides.length);
             cmds[5] = "-c";
@@ -191,19 +186,24 @@ contract HuffConfig {
         cmds[3] = "-e";
         cmds[4] = get_evm_version();
 
-        /// @notice compile the Huff contract and return the bytecode
-        bytecode = vm.ffi(cmds);
+        /// Call the compiler
+        Vm.FfiResult memory f = vm.tryFfi(cmds);
 
         // Clean up temp files
         string[] memory cleanup = new string[](2);
         cleanup[0] = "rm";
         cleanup[1] = string.concat("src/", tempFile, ".huff");
-
-        // set `msg.sender` for upcoming create context
-        vm.prank(deployer);
-
-
         vm.ffi(cleanup);
+
+        // Check if the compiler failed
+        if (f.exitCode != 0) {
+            revert HuffNeoCompilerFailed(string(f.stderr));
+        }
+
+        bytecode = f.stdout;
+        require(bytecode.length > 0, "Huff Neo compiler returned empty bytecode.");
+        // The contraction creation code 60008060093d393df3 = 9 bytes
+        require(bytecode.length > 9, "Huff Neo compiler returned only contract creation code.");
     }
 
     /// @notice get creation code of a contract plus encoded arguments
@@ -216,9 +216,13 @@ contract HuffConfig {
     function deploy(string memory file) public payable returns (address) {
         bytes memory concatenated = creation_code_with_args(file);
 
-        /// @notice deploy the bytecode with the create instruction
+        if (should_broadcast) {
+            vm.broadcast();
+        } else {
+            vm.prank(deployer);
+        }
+
         address deployedAddress;
-        if (should_broadcast) vm.broadcast();
         assembly {
             let val := sload(value.slot)
             deployedAddress := create(val, add(concatenated, 0x20), mload(concatenated))

@@ -10,8 +10,8 @@ import {IConstructor} from "./interfaces/IConstructor.sol";
 import {IRememberCreator} from "./interfaces/IRememberCreator.sol";
 
 contract HuffDeployerTest is Test {
-    INumber number;
-    IConstructor structor;
+    INumber private number;
+    IConstructor private structor;
 
     event ArgumentsUpdated(address indexed one, uint256 indexed two);
 
@@ -33,42 +33,44 @@ contract HuffDeployerTest is Test {
         assertEq(entries[0].topics[0], bytes32(uint256(keccak256("ArgumentsUpdated(address,uint256)"))));
         assertEq(entries[0].topics[1], bytes32(uint256(uint160(address(0x420)))));
         assertEq(entries[0].topics[2], bytes32(uint256(0x420)));
-
     }
 
     function testChaining() public {
         // Defined Constructor
         string memory constructor_macro = "#define macro CONSTRUCTOR() = takes(0) returns (0) {"
-            "    // Copy the first argument into memory \n"
-            "    0x20                        // [size] - byte size to copy \n"
-            "    0x40 codesize sub           // [offset, size] - offset in the code to copy from\n "
-            "    0x00                        // [mem, offset, size] - offset in memory to copy to \n"
-            "    codecopy                    // [] \n"
-            "    // Store the first argument in storage\n"
-            "    0x00 mload dup1             // [arg1, arg1] \n"
-            "    [CONSTRUCTOR_ARG_ONE]       // [CONSTRUCTOR_ARG_ONE, arg1, arg1] \n"
-            "    sstore                      // [arg1] \n"
-            "    // Copy the second argument into memory \n"
-            "    0x20                        // [size, arg1] - byte size to copy \n"
-            "    0x20 codesize sub           // [offset, size, arg1] - offset in the code to copy from \n"
-            "    0x00                        // [mem, offset, size, arg1] - offset in memory to copy to \n"
-            "    codecopy                    // [arg1] \n"
-            "    // Store the second argument in storage \n"
-            "    0x00 mload dup1             // [arg2, arg2, arg1] \n"
-            "    [CONSTRUCTOR_ARG_TWO]       // [CONSTRUCTOR_ARG_TWO, arg2, arg2, arg1] \n"
-            "    sstore                      // [arg2, arg1] \n"
-            "    // Emit the owner updated event \n"
-            "    swap1                            // [arg1, arg2] \n"
-            "    [ARGUMENTS_TOPIC]                // [sig, arg1, arg2] \n"
-            "    0x00 0x00                        // [0, 0, sig, arg1, arg2] \n"
-            "    log3                             // [] \n" "}";
+        "    // Copy the first argument into memory \n"
+        "    0x20                        // [size] - byte size to copy \n"
+        "    0x40 codesize sub           // [offset, size] - offset in the code to copy from\n "
+        "    0x00                        // [mem, offset, size] - offset in memory to copy to \n"
+        "    codecopy                    // [] \n"
+        "    // Store the first argument in storage\n"
+        "    0x00 mload dup1             // [arg1, arg1] \n"
+        "    [CONSTRUCTOR_ARG_ONE]       // [CONSTRUCTOR_ARG_ONE, arg1, arg1] \n"
+        "    sstore                      // [arg1] \n"
+        "    // Copy the second argument into memory \n"
+        "    0x20                        // [size, arg1] - byte size to copy \n"
+        "    0x20 codesize sub           // [offset, size, arg1] - offset in the code to copy from \n"
+        "    0x00                        // [mem, offset, size, arg1] - offset in memory to copy to \n"
+        "    codecopy                    // [arg1] \n"
+        "    // Store the second argument in storage \n"
+        "    0x00 mload dup1             // [arg2, arg2, arg1] \n"
+        "    [CONSTRUCTOR_ARG_TWO]       // [CONSTRUCTOR_ARG_TWO, arg2, arg2, arg1] \n"
+        "    sstore                      // [arg2, arg1] \n"
+        "    // Emit the owner updated event \n"
+        "    swap1                            // [arg1, arg2] \n"
+        "    [ARGUMENTS_TOPIC]                // [sig, arg1, arg2] \n"
+        "    0x00 0x00                        // [0, 0, sig, arg1, arg2] \n"
+        "    log3                             // [] \n"
+        "}";
 
         // New pattern
         vm.recordLogs();
         IConstructor chained = IConstructor(
-            HuffDeployer.config().with_args(
-                bytes.concat(abi.encode(address(0x420)), abi.encode(uint256(0x420)))
-            ).with_code(constructor_macro).deploy("test/contracts/NoConstructor")
+            HuffDeployer
+                .config()
+                .with_args(bytes.concat(abi.encode(address(0x420)), abi.encode(uint256(0x420))))
+                .with_code(constructor_macro)
+                .deploy("test/contracts/NoConstructor")
         );
 
         Vm.Log[] memory entries = vm.getRecordedLogs();
@@ -85,31 +87,39 @@ contract HuffDeployerTest is Test {
     function testChaining_Create2() public {
         // Defined Constructor
         string memory constructor_macro = "#define macro CONSTRUCTOR() = takes(0) returns (0) {"
-            "    // Copy the first argument into memory \n"
-            "    0x20                        // [size] - byte size to copy \n"
-            "    0x40 codesize sub           // [offset, size] - offset in the code to copy from\n "
-            "    0x00                        // [mem, offset, size] - offset in memory to copy to \n"
-            "    codecopy                    // [] \n" "    // Store the first argument in storage\n"
-            "    0x00 mload dup1             // [arg1, arg1] \n"
-            "    [CONSTRUCTOR_ARG_ONE]       // [CONSTRUCTOR_ARG_ONE, arg1, arg1] \n"
-            "    sstore                      // [arg1] \n" "    // Copy the second argument into memory \n"
-            "    0x20                        // [size, arg1] - byte size to copy \n"
-            "    0x20 codesize sub           // [offset, size, arg1] - offset in the code to copy from \n"
-            "    0x00                        // [mem, offset, size, arg1] - offset in memory to copy to \n"
-            "    codecopy                    // [arg1] \n" "    // Store the second argument in storage \n"
-            "    0x00 mload dup1             // [arg2, arg2, arg1] \n"
-            "    [CONSTRUCTOR_ARG_TWO]       // [CONSTRUCTOR_ARG_TWO, arg2, arg2, arg1] \n"
-            "    sstore                      // [arg2, arg1] \n" "    // Emit the owner updated event \n"
-            "    swap1                            // [arg1, arg2] \n"
-            "    [ARGUMENTS_TOPIC]                // [sig, arg1, arg2] \n"
-            "    0x00 0x00                        // [0, 0, sig, arg1, arg2] \n"
-            "    log3                             // [] \n" "}";
+        "    // Copy the first argument into memory \n"
+        "    0x20                        // [size] - byte size to copy \n"
+        "    0x40 codesize sub           // [offset, size] - offset in the code to copy from\n "
+        "    0x00                        // [mem, offset, size] - offset in memory to copy to \n"
+        "    codecopy                    // [] \n"
+        "    // Store the first argument in storage\n"
+        "    0x00 mload dup1             // [arg1, arg1] \n"
+        "    [CONSTRUCTOR_ARG_ONE]       // [CONSTRUCTOR_ARG_ONE, arg1, arg1] \n"
+        "    sstore                      // [arg1] \n"
+        "    // Copy the second argument into memory \n"
+        "    0x20                        // [size, arg1] - byte size to copy \n"
+        "    0x20 codesize sub           // [offset, size, arg1] - offset in the code to copy from \n"
+        "    0x00                        // [mem, offset, size, arg1] - offset in memory to copy to \n"
+        "    codecopy                    // [arg1] \n"
+        "    // Store the second argument in storage \n"
+        "    0x00 mload dup1             // [arg2, arg2, arg1] \n"
+        "    [CONSTRUCTOR_ARG_TWO]       // [CONSTRUCTOR_ARG_TWO, arg2, arg2, arg1] \n"
+        "    sstore                      // [arg2, arg1] \n"
+        "    // Emit the owner updated event \n"
+        "    swap1                            // [arg1, arg2] \n"
+        "    [ARGUMENTS_TOPIC]                // [sig, arg1, arg2] \n"
+        "    0x00 0x00                        // [0, 0, sig, arg1, arg2] \n"
+        "    log3                             // [] \n"
+        "}";
 
         // New pattern
         vm.recordLogs();
         IConstructor chained = IConstructor(
-            HuffDeployer.config_with_create_2(1).with_args(bytes.concat(abi.encode(address(0x420)), abi.encode(uint256(0x420))))
-                .with_code(constructor_macro).deploy("test/contracts/NoConstructor")
+            HuffDeployer
+                .config_with_create_2(1)
+                .with_args(bytes.concat(abi.encode(address(0x420)), abi.encode(uint256(0x420))))
+                .with_code(constructor_macro)
+                .deploy("test/contracts/NoConstructor")
         );
 
         Vm.Log[] memory entries = vm.getRecordedLogs();
@@ -131,18 +141,14 @@ contract HuffDeployerTest is Test {
         assertEq(uint256(0x420), structor.getArgTwo());
     }
 
-    function testBytecode() public {
-        bytes memory b = bytes(
-            hex"5f3560e01c80633fb5c1cb1461001b578063f2c9ecd814610021575b6004355f555b5f545f5260205ff3"
-        );
+    function testBytecode() public view {
+        bytes memory b = bytes(hex"5f3560e01c80633fb5c1cb1461001b578063f2c9ecd814610021575b6004355f555b5f545f5260205ff3");
         assertEq(getCode(address(number)), b);
     }
 
     function testWithValueDeployment() public {
         uint256 value = 1 ether;
-        HuffDeployer.config().with_value(value).deploy{value: value}(
-            "test/contracts/ConstructorNeedsValue"
-        );
+        HuffDeployer.config().with_value(value).deploy{value: value}("test/contracts/ConstructorNeedsValue");
     }
 
     function testWithValueDeployment_Create2() public {
@@ -153,28 +159,25 @@ contract HuffDeployerTest is Test {
     function testConstantOverride() public {
         // Test address constant
         address a = 0xDeaDbeefdEAdbeefdEadbEEFdeadbeEFdEaDbeeF;
-        address deployed = HuffDeployer.config().with_addr_constant("a", a).with_constant(
-            "b", "0x420"
-        ).deploy("test/contracts/ConstOverride");
+        address deployed = HuffDeployer.config().with_addr_constant("a", a).with_constant("b", "0x420").deploy(
+            "test/contracts/ConstOverride"
+        );
         assertEq(getCode(deployed), hex"73DeaDbeefdEAdbeefdEadbEEFdeadbeEFdEaDbeeF610420");
 
         // Test uint constant
-        address deployed_2 = HuffDeployer.config().with_uint_constant("a", 32).with_constant(
-            "b", "0x420"
-        ).deploy("test/contracts/ConstOverride");
+        address deployed_2 = HuffDeployer.config().with_uint_constant("a", 32).with_constant("b", "0x420").deploy(
+            "test/contracts/ConstOverride"
+        );
         assertEq(getCode(deployed_2), hex"6020610420");
 
         // Test bytes32 constant
-        address deployed_3 = HuffDeployer.config().with_bytes32_constant("a", bytes32(hex"01"))
-            .with_constant("b", "0x420").deploy("test/contracts/ConstOverride");
-        assertEq(
-            getCode(deployed_3),
-            hex"7f0100000000000000000000000000000000000000000000000000000000000000610420"
+        address deployed_3 = HuffDeployer.config().with_bytes32_constant("a", bytes32(hex"01")).with_constant("b", "0x420").deploy(
+            "test/contracts/ConstOverride"
         );
+        assertEq(getCode(deployed_3), hex"7f0100000000000000000000000000000000000000000000000000000000000000610420");
 
         // Keep default "a" value and assign "b", which is unassigned in "ConstOverride.huff"
-        address deployed_4 =
-            HuffDeployer.config().with_constant("b", "0x420").deploy("test/contracts/ConstOverride");
+        address deployed_4 = HuffDeployer.config().with_constant("b", "0x420").deploy("test/contracts/ConstOverride");
         assertEq(getCode(deployed_4), hex"6001610420");
     }
 
@@ -193,9 +196,11 @@ contract HuffDeployerTest is Test {
         assertEq(getCode(deployed_2), hex"6020610420");
 
         // Test bytes32 constant
-        address deployed_3 = HuffDeployer.config_with_create_2(3).with_bytes32_constant("a", bytes32(hex"01")).with_constant(
-            "b", "0x420"
-        ).deploy("test/contracts/ConstOverride");
+        address deployed_3 = HuffDeployer
+            .config_with_create_2(3)
+            .with_bytes32_constant("a", bytes32(hex"01"))
+            .with_constant("b", "0x420")
+            .deploy("test/contracts/ConstOverride");
         assertEq(getCode(deployed_3), hex"7f0100000000000000000000000000000000000000000000000000000000000000610420");
 
         // Keep default "a" value and assign "b", which is unassigned in "ConstOverride.huff"
@@ -233,10 +238,7 @@ contract HuffDeployerTest is Test {
 
     function runTestConstructorCaller(address deployer) public {
         IRememberCreator rememberer = IRememberCreator(
-            HuffDeployer
-                .config()
-                .with_deployer(deployer)
-                .deploy("test/contracts/RememberCreator")
+            HuffDeployer.config().with_deployer(deployer).deploy("test/contracts/RememberCreator")
         );
         assertEq(rememberer.CREATOR(), deployer);
     }
@@ -272,5 +274,19 @@ contract HuffDeployerTest is Test {
 
         bytes memory defaultBytecode = withDefault.code;
         assertEq(defaultBytecode, expectedShanghai);
+    }
+
+    /// @dev test that the deployment fails when the compiler returns an error
+    function testEmpty() public {
+        HuffConfig config = HuffDeployer.config();
+        vm.expectRevert();
+        config.deploy("test/contracts/Empty");
+    }
+
+    /// @dev test that the deployment fails when the compiler returns an error
+    function testEmptyMain() public {
+        HuffConfig config = HuffDeployer.config();
+        vm.expectRevert();
+        config.deploy("test/contracts/EmptyMain");
     }
 }

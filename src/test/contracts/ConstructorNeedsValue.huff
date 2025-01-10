@@ -1,4 +1,3 @@
-
 #define macro CONSTRUCTOR() = takes (0) returns (0) {
     callvalue       // [msg.value]
     iszero          // [is_msg_value_zero]
