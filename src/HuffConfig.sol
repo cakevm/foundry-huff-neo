@@ -2,11 +2,8 @@
 pragma solidity >=0.8.13 <0.9.0;
 
 import {Vm} from "forge-std/Vm.sol";
-import {strings} from "stringutils/src/strings.sol";
 
 contract HuffConfig {
-    using strings for *;
-
     error HuffNeoCompilerFailed(string message);
 
     /// @notice Initializes cheat codes in order to use ffi to compile Huff contracts
@@ -125,44 +122,26 @@ contract HuffConfig {
     }
 
     /// @notice Get the creation bytecode of a contract
-    function creation_code(string memory file) public payable returns (bytes memory bytecode) {
-        // Split the file into its parts
-        strings.slice memory s = file.toSlice();
-        strings.slice memory delim = "/".toSlice();
-        string[] memory parts = new string[](s.count(delim) + 1);
-        for (uint256 i = 0; i < parts.length; i++) {
-            parts[i] = s.split(delim).toString();
-        }
+    function creation_code(string memory filepath) public payable returns (bytes memory bytecode) {
 
-        // Get the system time with our script
-        string[] memory time = new string[](1);
-        time[0] = "./lib/foundry-huff-neo/scripts/rand_bytes.sh";
-        bytes memory retData = vm.ffi(time);
-        string memory rand_bytes = bytesToString(abi.encodePacked(keccak256(abi.encode(bytes32(retData)))));
-
-        // Re-concatenate the file with a "__TEMP__" prefix
-        string memory tempFile = parts[0];
-        if (parts.length <= 1) {
-            tempFile = string.concat("__TEMP__", rand_bytes, tempFile);
-        } else {
-            for (uint256 i = 1; i < parts.length - 1; i++) {
-                tempFile = string.concat(tempFile, "/", parts[i]);
-            }
-            tempFile = string.concat(tempFile, "/", "__TEMP__", rand_bytes, parts[parts.length - 1]);
-        }
+        // Get a random file name
+        string[] memory rnd_cmd = new string[](1);
+        rnd_cmd[0] = "./lib/foundry-huff-neo/scripts/rand_bytes.sh";
+        bytes memory random_bytes = vm.ffi(rnd_cmd);
+        string memory tmp_filepath = string.concat("src/", bytesToString(random_bytes), ".huff");
 
         // Paste the code in a new temp file
         string[] memory create_cmds = new string[](3);
         create_cmds[0] = "./lib/foundry-huff-neo/scripts/file_writer.sh";
-        create_cmds[1] = string.concat("src/", tempFile, ".huff");
-        create_cmds[2] = string.concat(code, "\n");
+        create_cmds[1] = string.concat(code, "\n");
+        create_cmds[2] = tmp_filepath;
         vm.ffi(create_cmds);
 
-        // Append the real code to the temp file
+        // Append the code from the file to the temp file
         string[] memory append_cmds = new string[](3);
         append_cmds[0] = "./lib/foundry-huff-neo/scripts/read_and_append.sh";
-        append_cmds[1] = string.concat("src/", tempFile, ".huff");
-        append_cmds[2] = string.concat("src/", file, ".huff");
+        append_cmds[1] = string.concat("src/", filepath, ".huff");
+        append_cmds[2] = tmp_filepath;
         vm.ffi(append_cmds);
 
         // Create a list of strings with the commands necessary to compile Huff contracts
@@ -181,7 +160,7 @@ contract HuffConfig {
         }
 
         cmds[0] = "hnc";
-        cmds[1] = string(string.concat("src/", tempFile, ".huff"));
+        cmds[1] = tmp_filepath;
         cmds[2] = "-b";
         cmds[3] = "-e";
         cmds[4] = get_evm_version();
@@ -192,7 +171,7 @@ contract HuffConfig {
         // Clean up temp files
         string[] memory cleanup = new string[](2);
         cleanup[0] = "rm";
-        cleanup[1] = string.concat("src/", tempFile, ".huff");
+        cleanup[1] = tmp_filepath;
         vm.ffi(cleanup);
 
         // Check if the compiler failed

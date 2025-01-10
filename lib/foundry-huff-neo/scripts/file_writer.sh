@@ -1,3 +1,3 @@
-#! /bin/bash
+#!/usr/bin/env bash
 
-echo "$2" > $1
+echo "$1" > $2
