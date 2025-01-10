@@ -1,9 +1,15 @@
 <img align="right" width="400" height="160" top="140" src="./assets/foundry_huff_banner.jpg">
 
 
-# Foundry x Huff
+# Foundry x Huff Neo Compiler
+<div align="center">
 
-[![ci](https://github.com/huff-language/huff-rs/actions/workflows/ci.yaml/badge.svg)](https://github.com/huff-language/huff-rs/actions/workflows/ci.yaml) [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) ![Discord](https://img.shields.io/discord/980519274600882306)
+[![CI](https://github.com/cakevm/foundry-huff-neo/actions/workflows/ci.yaml/badge.svg)](https://github.com/cakevm/foundry-huff-neo/actions/workflows/ci.yaml) [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0) [![Telegram Chat][tg-badge]][tg-url] 
+
+[tg-badge]: https://img.shields.io/badge/telegram-huff_neo-2CA5E0?style=plastic&logo=telegram
+[tg-url]: https://t.me/huff_neo
+
+</div>
 
 A [foundry](https://github.com/foundry-rs/foundry) library for working with [huff](https://github.com/huff-language/huff-rs) contracts. Take a look at our [project template](https://github.com/huff-language/huff-project-template) to see an example project that uses this library.
 
