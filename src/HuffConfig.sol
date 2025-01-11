@@ -135,7 +135,14 @@ contract HuffConfig {
         // Get a random file name
         string[] memory rnd_cmd = new string[](1);
         rnd_cmd[0] = "./lib/foundry-huff-neo/scripts/rand_bytes.sh";
-        bytes memory random_bytes = vm.ffi(rnd_cmd);
+        Vm.FfiResult memory rnd_result = vm.tryFfi(rnd_cmd);
+        require(rnd_result.exitCode == 0, "Failed to execute random bytes command.");
+
+        // Check if the random bytes are 16 bytes long
+        bytes memory random_bytes = rnd_result.stdout;
+        require(random_bytes.length == 16, "Failed to read random bytes.");
+
+        // Build the temp file path
         string memory tmp_filepath = string.concat("src/", bytesToString(random_bytes), ".huff");
 
         // Paste the code in a new temp file
@@ -143,14 +150,16 @@ contract HuffConfig {
         create_cmds[0] = "./lib/foundry-huff-neo/scripts/file_writer.sh";
         create_cmds[1] = string.concat(code, "\n");
         create_cmds[2] = tmp_filepath;
-        vm.ffi(create_cmds);
+        Vm.FfiResult memory create_result = vm.tryFfi(create_cmds);
+        require(create_result.exitCode == 0, "Failed to create temp file.");
 
         // Append the code from the file to the temp file
         string[] memory append_cmds = new string[](3);
         append_cmds[0] = "./lib/foundry-huff-neo/scripts/read_and_append.sh";
         append_cmds[1] = full_filepath;
         append_cmds[2] = tmp_filepath;
-        vm.ffi(append_cmds);
+        Vm.FfiResult memory append_result = vm.tryFfi(append_cmds);
+        require(append_result.exitCode == 0, "Failed to append Huff file to temp file.");
 
         // Create a list of strings with the commands necessary to compile Huff contracts
         string[] memory cmds = new string[](5);
