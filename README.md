@@ -7,7 +7,7 @@
 
 </div>
 
-# Foundry x Huff Neo Compiler
+# Foundry Huff Neo
 
 A [foundry](https://github.com/foundry-rs/foundry) library for working with [huff](https://github.com/huff-language/huff-rs) contracts using [huff-neo](https://github.com/cakevm/huff-neo). Take a look at our [project template](https://github.com/huff-language/huff-project-template) to see an example project that uses this library.
 

@@ -123,6 +123,14 @@ contract HuffConfig {
 
     /// @notice Get the creation bytecode of a contract
     function creation_code(string memory filepath) public payable returns (bytes memory bytecode) {
+        string memory full_filepath = string.concat("src/", filepath, ".huff");
+        // Check if the file exists (vm.isFile would require permission)
+        string[] memory check_cmds = new string[](3);
+        check_cmds[0] = "test";
+        check_cmds[1] = "-f";
+        check_cmds[2] = full_filepath;
+        Vm.FfiResult memory check = vm.tryFfi(check_cmds);
+        require(check.exitCode == 0, "Huff file does not exist.");
 
         // Get a random file name
         string[] memory rnd_cmd = new string[](1);
@@ -140,7 +148,7 @@ contract HuffConfig {
         // Append the code from the file to the temp file
         string[] memory append_cmds = new string[](3);
         append_cmds[0] = "./lib/foundry-huff-neo/scripts/read_and_append.sh";
-        append_cmds[1] = string.concat("src/", filepath, ".huff");
+        append_cmds[1] = full_filepath;
         append_cmds[2] = tmp_filepath;
         vm.ffi(append_cmds);
 
