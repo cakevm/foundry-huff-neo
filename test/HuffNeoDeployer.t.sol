@@ -3,26 +3,25 @@ pragma solidity >=0.7.0 <0.9.0;
 
 import "forge-std/Test.sol";
 
-import {HuffConfig} from "../HuffConfig.sol";
-import {HuffDeployer} from "../HuffDeployer.sol";
+import {HuffNeoConfig} from "../src/HuffNeoConfig.sol";
+import {HuffNeoDeployer} from "../src/HuffNeoDeployer.sol";
 import {INumber} from "./interfaces/INumber.sol";
 import {IConstructor} from "./interfaces/IConstructor.sol";
 import {IRememberCreator} from "./interfaces/IRememberCreator.sol";
 
-contract HuffDeployerTest is Test {
+contract HuffNeoDeployerTest is Test {
     INumber private number;
     IConstructor private structor;
 
     event ArgumentsUpdated(address indexed one, uint256 indexed two);
 
     function setUp() public {
-        number = INumber(HuffDeployer.deploy("test/contracts/Number"));
+        number = INumber(HuffNeoDeployer.deploy("test/contracts/Number.huff"));
 
-        // Backwards-compatible Constructor creation
         vm.recordLogs();
         structor = IConstructor(
-            HuffDeployer.deploy_with_args(
-                "test/contracts/Constructor",
+            HuffNeoDeployer.deploy_with_args(
+                "test/contracts/Constructor.huff",
                 bytes.concat(abi.encode(address(0x420)), abi.encode(uint256(0x420)))
             )
         );
@@ -36,41 +35,11 @@ contract HuffDeployerTest is Test {
     }
 
     function testChaining() public {
-        // Defined Constructor
-        string memory constructor_macro = "#define macro CONSTRUCTOR() = takes(0) returns (0) {"
-        "    // Copy the first argument into memory \n"
-        "    0x20                        // [size] - byte size to copy \n"
-        "    0x40 codesize sub           // [offset, size] - offset in the code to copy from\n "
-        "    0x00                        // [mem, offset, size] - offset in memory to copy to \n"
-        "    codecopy                    // [] \n"
-        "    // Store the first argument in storage\n"
-        "    0x00 mload dup1             // [arg1, arg1] \n"
-        "    [CONSTRUCTOR_ARG_ONE]       // [CONSTRUCTOR_ARG_ONE, arg1, arg1] \n"
-        "    sstore                      // [arg1] \n"
-        "    // Copy the second argument into memory \n"
-        "    0x20                        // [size, arg1] - byte size to copy \n"
-        "    0x20 codesize sub           // [offset, size, arg1] - offset in the code to copy from \n"
-        "    0x00                        // [mem, offset, size, arg1] - offset in memory to copy to \n"
-        "    codecopy                    // [arg1] \n"
-        "    // Store the second argument in storage \n"
-        "    0x00 mload dup1             // [arg2, arg2, arg1] \n"
-        "    [CONSTRUCTOR_ARG_TWO]       // [CONSTRUCTOR_ARG_TWO, arg2, arg2, arg1] \n"
-        "    sstore                      // [arg2, arg1] \n"
-        "    // Emit the owner updated event \n"
-        "    swap1                            // [arg1, arg2] \n"
-        "    [ARGUMENTS_TOPIC]                // [sig, arg1, arg2] \n"
-        "    0x00 0x00                        // [0, 0, sig, arg1, arg2] \n"
-        "    log3                             // [] \n"
-        "}";
-
-        // New pattern
         vm.recordLogs();
         IConstructor chained = IConstructor(
-            HuffDeployer
-                .config()
-                .with_args(bytes.concat(abi.encode(address(0x420)), abi.encode(uint256(0x420))))
-                .with_code(constructor_macro)
-                .deploy("test/contracts/NoConstructor")
+            HuffNeoDeployer.config().with_args(bytes.concat(abi.encode(address(0x420)), abi.encode(uint256(0x420)))).deploy(
+                "test/contracts/Constructor.huff"
+            )
         );
 
         Vm.Log[] memory entries = vm.getRecordedLogs();
@@ -85,41 +54,11 @@ contract HuffDeployerTest is Test {
     }
 
     function testChaining_Create2() public {
-        // Defined Constructor
-        string memory constructor_macro = "#define macro CONSTRUCTOR() = takes(0) returns (0) {"
-        "    // Copy the first argument into memory \n"
-        "    0x20                        // [size] - byte size to copy \n"
-        "    0x40 codesize sub           // [offset, size] - offset in the code to copy from\n "
-        "    0x00                        // [mem, offset, size] - offset in memory to copy to \n"
-        "    codecopy                    // [] \n"
-        "    // Store the first argument in storage\n"
-        "    0x00 mload dup1             // [arg1, arg1] \n"
-        "    [CONSTRUCTOR_ARG_ONE]       // [CONSTRUCTOR_ARG_ONE, arg1, arg1] \n"
-        "    sstore                      // [arg1] \n"
-        "    // Copy the second argument into memory \n"
-        "    0x20                        // [size, arg1] - byte size to copy \n"
-        "    0x20 codesize sub           // [offset, size, arg1] - offset in the code to copy from \n"
-        "    0x00                        // [mem, offset, size, arg1] - offset in memory to copy to \n"
-        "    codecopy                    // [arg1] \n"
-        "    // Store the second argument in storage \n"
-        "    0x00 mload dup1             // [arg2, arg2, arg1] \n"
-        "    [CONSTRUCTOR_ARG_TWO]       // [CONSTRUCTOR_ARG_TWO, arg2, arg2, arg1] \n"
-        "    sstore                      // [arg2, arg1] \n"
-        "    // Emit the owner updated event \n"
-        "    swap1                            // [arg1, arg2] \n"
-        "    [ARGUMENTS_TOPIC]                // [sig, arg1, arg2] \n"
-        "    0x00 0x00                        // [0, 0, sig, arg1, arg2] \n"
-        "    log3                             // [] \n"
-        "}";
-
-        // New pattern
         vm.recordLogs();
         IConstructor chained = IConstructor(
-            HuffDeployer
-                .config_with_create_2(1)
-                .with_args(bytes.concat(abi.encode(address(0x420)), abi.encode(uint256(0x420))))
-                .with_code(constructor_macro)
-                .deploy("test/contracts/NoConstructor")
+            HuffNeoDeployer.config_with_create_2(1).with_args(bytes.concat(abi.encode(address(0x420)), abi.encode(uint256(0x420)))).deploy(
+                "test/contracts/Constructor.huff"
+            )
         );
 
         Vm.Log[] memory entries = vm.getRecordedLogs();
@@ -148,63 +87,65 @@ contract HuffDeployerTest is Test {
 
     function testWithValueDeployment() public {
         uint256 value = 1 ether;
-        HuffDeployer.config().with_value(value).deploy{value: value}("test/contracts/ConstructorNeedsValue");
+        HuffNeoDeployer.config().with_value(value).deploy{value: value}("test/contracts/ConstructorNeedsValue.huff");
     }
 
     function testWithValueDeployment_Create2() public {
         uint256 value = 1 ether;
-        HuffDeployer.config_with_create_2(1).with_value(value).deploy{value: value}("test/contracts/ConstructorNeedsValue");
+        HuffNeoDeployer.config_with_create_2(1).with_value(value).deploy{value: value}("test/contracts/ConstructorNeedsValue.huff");
     }
 
     function testConstantOverride() public {
         // Test address constant
         address a = 0xDeaDbeefdEAdbeefdEadbEEFdeadbeEFdEaDbeeF;
-        address deployed = HuffDeployer.config().with_addr_constant("a", a).with_constant("b", "0x420").deploy(
-            "test/contracts/ConstOverride"
+        address deployed = HuffNeoDeployer.config().with_addr_constant("a", a).with_constant("b", "0x420").deploy(
+            "test/contracts/ConstOverride.huff"
         );
         assertEq(getCode(deployed), hex"73DeaDbeefdEAdbeefdEadbEEFdeadbeEFdEaDbeeF610420");
 
         // Test uint constant
-        address deployed_2 = HuffDeployer.config().with_uint_constant("a", 32).with_constant("b", "0x420").deploy(
-            "test/contracts/ConstOverride"
+        address deployed_2 = HuffNeoDeployer.config().with_uint_constant("a", 32).with_constant("b", "0x420").deploy(
+            "test/contracts/ConstOverride.huff"
         );
         assertEq(getCode(deployed_2), hex"6020610420");
 
         // Test bytes32 constant
-        address deployed_3 = HuffDeployer.config().with_bytes32_constant("a", bytes32(hex"01")).with_constant("b", "0x420").deploy(
-            "test/contracts/ConstOverride"
+        address deployed_3 = HuffNeoDeployer.config().with_bytes32_constant("a", bytes32(hex"01")).with_constant("b", "0x420").deploy(
+            "test/contracts/ConstOverride.huff"
         );
         assertEq(getCode(deployed_3), hex"7f0100000000000000000000000000000000000000000000000000000000000000610420");
 
         // Keep default "a" value and assign "b", which is unassigned in "ConstOverride.huff"
-        address deployed_4 = HuffDeployer.config().with_constant("b", "0x420").deploy("test/contracts/ConstOverride");
+        address deployed_4 = HuffNeoDeployer.config().with_constant("b", "0x420").deploy("test/contracts/ConstOverride.huff");
         assertEq(getCode(deployed_4), hex"6001610420");
     }
 
     function testConstantOverride_Create2() public {
         // Test address constant
         address a = 0xDeaDbeefdEAdbeefdEadbEEFdeadbeEFdEaDbeeF;
-        address deployed = HuffDeployer.config_with_create_2(1).with_addr_constant("a", a).with_constant("b", "0x420").deploy(
-            "test/contracts/ConstOverride"
+        address deployed = HuffNeoDeployer.config_with_create_2(1).with_addr_constant("a", a).with_constant("b", "0x420").deploy(
+            "test/contracts/ConstOverride.huff"
         );
         assertEq(getCode(deployed), hex"73DeaDbeefdEAdbeefdEadbEEFdeadbeEFdEaDbeeF610420");
 
         // Test uint constant
-        address deployed_2 = HuffDeployer.config_with_create_2(2).with_uint_constant("a", 32).with_constant("b", "0x420").deploy(
-            "test/contracts/ConstOverride"
+        address deployed_2 = HuffNeoDeployer.config_with_create_2(2).with_uint_constant("a", 32).with_constant("b", "0x420").deploy(
+            "test/contracts/ConstOverride.huff"
         );
         assertEq(getCode(deployed_2), hex"6020610420");
 
         // Test bytes32 constant
-        address deployed_3 = HuffDeployer
+        address deployed_3 = HuffNeoDeployer
             .config_with_create_2(3)
             .with_bytes32_constant("a", bytes32(hex"01"))
             .with_constant("b", "0x420")
-            .deploy("test/contracts/ConstOverride");
+            .deploy("test/contracts/ConstOverride.huff");
         assertEq(getCode(deployed_3), hex"7f0100000000000000000000000000000000000000000000000000000000000000610420");
 
         // Keep default "a" value and assign "b", which is unassigned in "ConstOverride.huff"
-        address deployed_4 = HuffDeployer.config_with_create_2(4).with_constant("b", "0x420").deploy("test/contracts/ConstOverride");
+        address deployed_4 = HuffNeoDeployer.config_with_create_2(4).with_constant("b", "0x420").deploy(
+            "test/contracts/ConstOverride.huff"
+        );
         assertEq(getCode(deployed_4), hex"6001610420");
     }
 
@@ -231,14 +172,14 @@ contract HuffDeployerTest is Test {
     }
 
     function testConstructorDefaultCaller() public {
-        HuffConfig config = HuffDeployer.config();
-        IRememberCreator rememberer = IRememberCreator(config.deploy("test/contracts/RememberCreator"));
+        HuffNeoConfig config = HuffNeoDeployer.config();
+        IRememberCreator rememberer = IRememberCreator(config.deploy("test/contracts/RememberCreator.huff"));
         assertEq(rememberer.CREATOR(), address(config));
     }
 
     function runTestConstructorCaller(address deployer) public {
         IRememberCreator rememberer = IRememberCreator(
-            HuffDeployer.config().with_deployer(deployer).deploy("test/contracts/RememberCreator")
+            HuffNeoDeployer.config().with_deployer(deployer).deploy("test/contracts/RememberCreator.huff")
         );
         assertEq(rememberer.CREATOR(), deployer);
     }
@@ -255,22 +196,22 @@ contract HuffDeployerTest is Test {
     function testSettingEVMVersion() public {
         /// expected bytecode for EVM version "paris"
         bytes memory expectedParis = hex"6000";
-        HuffConfig config = HuffDeployer.config().with_evm_version("paris");
-        address withParis = config.deploy("test/contracts/EVMVersionCheck");
+        HuffNeoConfig config = HuffNeoDeployer.config().with_evm_version("paris");
+        address withParis = config.deploy("test/contracts/EVMVersionCheck.huff");
 
         bytes memory parisBytecode = withParis.code;
         assertEq(parisBytecode, expectedParis);
 
         /// expected bytecode for EVM version "shanghai" | default
         bytes memory expectedShanghai = hex"5f";
-        HuffConfig shanghaiConfig = HuffDeployer.config().with_evm_version("shanghai");
-        address withShanghai = shanghaiConfig.deploy("test/contracts/EVMVersionCheck");
+        HuffNeoConfig shanghaiConfig = HuffNeoDeployer.config().with_evm_version("shanghai");
+        address withShanghai = shanghaiConfig.deploy("test/contracts/EVMVersionCheck.huff");
         bytes memory shanghaiBytecode = withShanghai.code;
         assertEq(shanghaiBytecode, expectedShanghai);
 
         /// Default should be shanghai (latest)
-        HuffConfig defaultConfig = HuffDeployer.config().with_evm_version("");
-        address withDefault = defaultConfig.deploy("test/contracts/EVMVersionCheck");
+        HuffNeoConfig defaultConfig = HuffNeoDeployer.config().with_evm_version("");
+        address withDefault = defaultConfig.deploy("test/contracts/EVMVersionCheck.huff");
 
         bytes memory defaultBytecode = withDefault.code;
         assertEq(defaultBytecode, expectedShanghai);
@@ -278,15 +219,15 @@ contract HuffDeployerTest is Test {
 
     /// @dev test that the deployment fails when the compiler returns an error
     function testEmpty() public {
-        HuffConfig config = HuffDeployer.config();
+        HuffNeoConfig config = HuffNeoDeployer.config();
         vm.expectRevert();
-        config.deploy("test/contracts/Empty");
+        config.deploy("test/contracts/Empty.huff");
     }
 
     /// @dev test that the deployment fails when the compiler returns an error
     function testEmptyMain() public {
-        HuffConfig config = HuffDeployer.config();
+        HuffNeoConfig config = HuffNeoDeployer.config();
         vm.expectRevert();
-        config.deploy("test/contracts/EmptyMain");
+        config.deploy("test/contracts/EmptyMain.huff");
     }
 }

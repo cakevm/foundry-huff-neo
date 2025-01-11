@@ -5,14 +5,14 @@ import "forge-std/Test.sol";
 
 import {INumber} from "./interfaces/INumber.sol";
 import {IConstructor} from "./interfaces/IConstructor.sol";
-import {HuffConfig} from "../HuffConfig.sol";
+import {HuffNeoConfig} from "../src/HuffNeoConfig.sol";
 
-contract HuffConfigTest is Test {
-    HuffConfig public config;
+contract HuffNeoConfigTest is Test {
+    HuffNeoConfig public config;
     INumber public number;
 
     function setUp() public {
-        config = new HuffConfig();
+        config = new HuffNeoConfig();
     }
 
     function testWithDeployer(address deployer) public {
@@ -28,11 +28,6 @@ contract HuffConfigTest is Test {
     function testWithValue(uint256 value) public {
         config.with_value(value);
         assertEq(config.value(), value);
-    }
-
-    function testWithCode(string memory code) public {
-        config.with_code(code);
-        assertEq(config.code(), code);
     }
 
     function testWithConstantOverrides(string memory key, string memory value) public {

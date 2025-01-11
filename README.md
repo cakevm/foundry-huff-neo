@@ -8,13 +8,11 @@
 </div>
 
 # Foundry Huff Neo
-
-A [foundry](https://github.com/foundry-rs/foundry) library for working with [huff](https://github.com/huff-language/huff-rs) contracts using [huff-neo](https://github.com/cakevm/huff-neo). Take a look at our [project template](https://github.com/huff-language/huff-project-template) to see an example project that uses this library.
+A [foundry](https://github.com/foundry-rs/foundry) library for working with [huff](https://github.com/huff-language/huff-rs) contracts using [huff-neo](https://github.com/cakevm/huff-neo). Take a look at the [project template](https://github.com/cakevm/huff-neo-project-template) to start your own project.
 
 
 ## Installing
-
-First, install the [huff compiler](https://github.com/huff-language/huff-rs) by running:
+First, install the [huff neo compiler](https://github.com/cakevm/huff-neo) (command `hnc`) by running (you find in the compiler repository for more options):
 ```
 curl -L https://raw.githubusercontent.com/cakevm/huff-neo/main/hnc-up/install | bash
 ```
@@ -26,31 +24,29 @@ forge install cakevm/foundry-huff-neo
 
 
 ## Usage
+The HuffNeoDeployer is a Solidity library that takes a filename and deploys the corresponding Huff contract, returning the address that the bytecode was deployed to. To use it, simply import it into your file by doing:
 
-The HuffDeployer is a Solidity library that takes a filename and deploys the corresponding Huff contract, returning the address that the bytecode was deployed to. To use it, simply import it into your file by doing:
-
-```js
-import {HuffDeployer} from "foundry-huff-neo/HuffDeployer.sol";
+```solidity
+import {HuffNeoDeployer} from "foundry-huff-neo/HuffNeoDeployer.sol";
 ```
 
-To compile contracts, you can use `HuffDeployer.deploy(string fileName)`, which takes in a single string representing the filename's path relative to the `src` directory. Note that the file ending, i.e. `.huff`, must be omitted.
-Here is an example deployment (where the contract is located in [`src/test/contracts/Number.huff`](./src/test/contracts/Number.huff)):
+To compile contracts, you can use `HuffNeoDeployer.deploy(string fileName)`, which takes in a single string representing the filepath. Due to the limits of Foundry/EVM this path should start from the root of your project. When running `forge` make sure that you are in the root directory of your project.
 
 ```solidity
 // SPDX-License-Identifier: Apache-2.0
-pragma solidity >=0.7.0 <0.9.0;
+pragma solidity >=0.8.0 <0.9.0;
 
-import {HuffDeployer} from "foundry-huff-neo/HuffDeployer";
+import {HuffNeoDeployer} from "foundry-huff-neo/HuffNeoDeployer";
 
 interface Number {
   function setNumber(uint256) external;
   function getNumber() external returns (uint256);
 }
 
-contract HuffDeployerExample {
+contract HuffNeoDeployerExample {
   function deploy() public {
-    // Deploy a new instance of src/test/contracts/Number.huff
-    address addr = HuffDeployer.deploy("test/contracts/Number");
+    // Deploy a new instance of test/contracts/Number.huff
+    address addr = HuffNeoDeployer.deploy("test/contracts/Number.huff");
 
     // To call a function on the deployed contract, create an interface and wrap the address like so
     Number number = Number(addr);
@@ -58,28 +54,28 @@ contract HuffDeployerExample {
 }
 ```
 
-To deploy a Huff contract with constructor arguments, you can _chain_ commands onto the HuffDeployer.
+To deploy a Huff contract with constructor arguments, you can _chain_ commands onto the HuffNeoDeployer.
 
-For example, to deploy the contract [`src/test/contracts/Constructor.huff`](src/test/contracts/Constructor.huff) with arguments `(uint256(0x420), uint256(0x420))`, you are encouraged to follow the logic defined in the `deploy` function of the `HuffDeployerArguments` contract below.
+For example, to deploy the contract [`src/test/contracts/Constructor.huff`](test/contracts/Constructor.huff) with arguments `(uint256(0x420), uint256(0x420))`, you are encouraged to follow the logic defined in the `deploy` function of the `HuffNeoDeployerArguments` contract below.
 
 ```solidity
 // SPDX-License-Identifier: Apache-2.0
-pragma solidity >=0.7.0 <0.9.0;
+pragma solidity >=0.8.0 <0.9.0;
 
-import {HuffDeployer} from "foundry-huff-neo/HuffDeployer";
+import {HuffNeoDeployer} from "foundry-huff-neo/HuffNeoDeployer";
 
 interface Constructor {
   function getArgOne() external returns (address);
   function getArgTwo() external returns (uint256);
 }
 
-contract HuffDeployerArguments {
+contract HuffNeoDeployerArguments {
   function deploy() public {
     // Deploy the contract with arguments
-    address addr = HuffDeployer
+    address addr = HuffNeoDeployer
       .config()
       .with_args(bytes.concat(abi.encode(uint256(0x420)), abi.encode(uint256(0x420))))
-      .deploy("test/contracts/Constructor");
+      .deploy("test/contracts/Constructor.huff");
 
     // To call a function on the deployed contract, create an interface and wrap the address
     Constructor construct = Constructor(addr);
@@ -90,8 +86,8 @@ contract HuffDeployerArguments {
   }
 
   function depreciated_deploy() public {
-    address addr = HuffDeployer.deploy_with_args(
-      "test/contracts/Constructor",
+    address addr = HuffNeoDeployer.deploy_with_args(
+      "test/contracts/Constructor.huff",
       bytes.concat(abi.encode(uint256(0x420)), abi.encode(uint256(0x420)))
     );
 
@@ -100,72 +96,8 @@ contract HuffDeployerArguments {
 }
 ```
 
-HuffDeployer also enables you to instantiate contracts, from the test file, even if they have _no constructor macro_!
+## Acknowledgements
+Many thanks to the [foundry-huff](https://github.com/huff-language/foundry-huff) contributors and to the authors who maintained it for such a long period! 
 
-This is possible by using [Foundry](https://github.com/foundry-rs/foundry)'s [ffi](https://book.getfoundry.sh/cheatcodes/ffi.html) cheatcode.
-
-_NOTE: It is highly recommended that you read the foundry book, or at least familiarize yourself with foundry, before using this library to avoid easily susceptible footguns._
-
-Let's use the huff contract [`src/test/contracts/NoConstructor.huff`](./src/test/contracts/NoConstructor.huff), which has no defined constructor macro. The inline-instantiation defined in the `deploy` function of the `HuffDeployerCode` contract below is recommended.
-
-```solidity
-// SPDX-License-Identifier: Apache-2.0
-pragma solidity >=0.7.0 <0.9.0;
-
-import {HuffDeployer} from "foundry-huff-neo/HuffDeployer";
-
-interface Constructor {
-  function getArgOne() external returns (address);
-  function getArgTwo() external returns (uint256);
-}
-
-contract HuffDeployerCode {
-
-  function deploy() public {
-    // Define a new constructor macro as a string
-    string memory constructor_macro = "#define macro CONSTRUCTOR() = takes(0) returns (0) {"
-      "    // Copy the first argument into memory \n"
-      "    0x20                        // [size] - byte size to copy \n"
-      "    0x40 codesize sub           // [offset, size] - offset in the code to copy from\n "
-      "    0x00                        // [mem, offset, size] - offset in memory to copy to \n"
-      "    codecopy                    // [] \n"
-      "    // Store the first argument in storage\n"
-      "    0x00 mload                  // [arg] \n"
-      "    [CONSTRUCTOR_ARG_ONE]       // [CONSTRUCTOR_ARG_ONE, arg] \n"
-      "    sstore                      // [] \n"
-      "    // Copy the second argument into memory \n"
-      "    0x20                        // [size] - byte size to copy \n"
-      "    0x20 codesize sub           // [offset, size] - offset in the code to copy from \n"
-      "    0x00                        // [mem, offset, size] - offset in memory to copy to \n"
-      "    codecopy                    // [] \n"
-      "    // Store the second argument in storage \n"
-      "    0x00 mload                  // [arg] \n"
-      "    [CONSTRUCTOR_ARG_TWO]       // [CONSTRUCTOR_ARG_TWO, arg] \n"
-      "    sstore                      // [] \n"
-      "}";
-
-    // Deploy the contract with arguments
-    address addr = HuffDeployer
-      .config()
-      .with_args(bytes.concat(abi.encode(uint256(0x420)), abi.encode(uint256(0x420))))
-      .with_code(constructor_macro)
-      .deploy("test/contracts/NoConstructor");
-
-    // To call a function on the deployed contract, create an interface and wrap the address
-    Constructor construct = Constructor(addr);
-
-    // Validate we deployed the Constructor with the correct arguments
-    assert(construct.getArgOne() == address(0x420));
-    assert(construct.getArgTwo() == uint256(0x420));
-  }
-
-  function depreciated_deploy_with_code() public {
-    address addr = HuffDeployer.deploy_with_code(
-      "test/contracts/Constructor",
-      constructor_macro
-    );
-
-    // ...
-  }
-}
-```
+## License
+This project is licensed under the [Apache 2.0 license](./LICENSE).

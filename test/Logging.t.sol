@@ -3,8 +3,8 @@ pragma solidity >=0.7.0 <0.9.0;
 
 import "forge-std/Test.sol";
 
-import {HuffConfig} from "../HuffConfig.sol";
-import {HuffDeployer} from "../HuffDeployer.sol";
+import {HuffNeoConfig} from "../src/HuffNeoConfig.sol";
+import {HuffNeoDeployer} from "../src/HuffNeoDeployer.sol";
 import {INumber} from "./interfaces/INumber.sol";
 import {IConstructor} from "./interfaces/IConstructor.sol";
 
@@ -17,7 +17,10 @@ contract LoggingTest is Test {
 
     function testLoggingWithArgs() public {
         vm.recordLogs();
-        HuffDeployer.deploy_with_args("test/contracts/LotsOfLogging", bytes.concat(abi.encode(address(0x420)), abi.encode(uint256(0x420))));
+        HuffNeoDeployer.deploy_with_args(
+            "test/contracts/LotsOfLogging.huff",
+            bytes.concat(abi.encode(address(0x420)), abi.encode(uint256(0x420)))
+        );
         Vm.Log[] memory entries = vm.getRecordedLogs();
 
         assertEq(entries.length, 5);
@@ -50,17 +53,17 @@ contract LoggingTest is Test {
         emit LogThree(address(0), 0);
         emit LogFour(address(0), 0, keccak256(abi.encode(1)));
         emit Extended(address(0), 0, keccak256(abi.encode(1)), keccak256(abi.encode(2)), keccak256(abi.encode(3)));
-        HuffDeployer.deploy("test/contracts/LotsOfLogging");
+        HuffNeoDeployer.deploy("test/contracts/LotsOfLogging.huff");
     }
 
     function testConfigLogging() public {
-        HuffConfig config = HuffDeployer.config().with_args(abi.encode(address(0x420)));
+        HuffNeoConfig config = HuffNeoDeployer.config().with_args(abi.encode(address(0x420)));
         vm.expectEmit(true, true, true, true);
         emit LogOne();
         emit LogTwo(address(config));
         emit LogThree(address(config), 0);
         emit LogFour(address(config), 0, keccak256(abi.encode(1)));
         emit Extended(address(config), 0, keccak256(abi.encode(1)), keccak256(abi.encode(2)), keccak256(abi.encode(3)));
-        config.deploy("test/contracts/LotsOfLogging");
+        config.deploy("test/contracts/LotsOfLogging.huff");
     }
 }
