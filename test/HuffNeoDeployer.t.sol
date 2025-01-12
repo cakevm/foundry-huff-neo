@@ -195,24 +195,28 @@ contract HuffNeoDeployerTest is Test {
     /// @dev test that compilation is different with new evm versions
     function testSettingEVMVersion() public {
         /// expected bytecode for EVM version "paris"
-        bytes memory expectedParis = hex"6000";
-        HuffNeoConfig config = HuffNeoDeployer.config().with_evm_version("paris");
-        address withParis = config.deploy("test/contracts/EVMVersionCheck.huff");
+        bytes memory expectedParis = hex"6000"; // PUSH1 0x00
+        HuffNeoConfig parisConfig = HuffNeoDeployer.config().with_evm_version("paris");
+        assertEq(parisConfig.get_evm_version(), "paris");
 
+        address withParis = parisConfig.deploy("test/contracts/EVMVersionCheck.huff");
         bytes memory parisBytecode = withParis.code;
         assertEq(parisBytecode, expectedParis);
 
-        /// expected bytecode for EVM version "shanghai" | default
-        bytes memory expectedShanghai = hex"5f";
+        /// expected bytecode for EVM version "shanghai"
+        bytes memory expectedShanghai = hex"5f"; // PUSH0
         HuffNeoConfig shanghaiConfig = HuffNeoDeployer.config().with_evm_version("shanghai");
+        assertEq(shanghaiConfig.get_evm_version(), "shanghai");
+
         address withShanghai = shanghaiConfig.deploy("test/contracts/EVMVersionCheck.huff");
         bytes memory shanghaiBytecode = withShanghai.code;
         assertEq(shanghaiBytecode, expectedShanghai);
 
-        /// Default should be shanghai (latest)
-        HuffNeoConfig defaultConfig = HuffNeoDeployer.config().with_evm_version("");
-        address withDefault = defaultConfig.deploy("test/contracts/EVMVersionCheck.huff");
+        /// Default should be cancun (latest) which return the same as "shanghai"
+        HuffNeoConfig defaultConfig = HuffNeoDeployer.config();
+        assertEq(defaultConfig.get_evm_version(), "cancun");
 
+        address withDefault = defaultConfig.deploy("test/contracts/EVMVersionCheck.huff");
         bytes memory defaultBytecode = withDefault.code;
         assertEq(defaultBytecode, expectedShanghai);
     }
@@ -229,5 +233,12 @@ contract HuffNeoDeployerTest is Test {
         HuffNeoConfig config = HuffNeoDeployer.config();
         vm.expectRevert();
         config.deploy("test/contracts/EmptyMain.huff");
+    }
+
+    /// @dev test that the deployment fails if the file does not exists
+    function testFileDoesNotExists() public {
+        HuffNeoConfig config = HuffNeoDeployer.config();
+        vm.expectRevert();
+        config.deploy("DOES_NOT_EXISTS");
     }
 }

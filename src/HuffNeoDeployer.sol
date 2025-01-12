@@ -5,12 +5,12 @@ import {Vm} from "forge-std/Vm.sol";
 import {HuffNeoConfig} from "./HuffNeoConfig.sol";
 
 library HuffNeoDeployer {
-    /// @notice Create a new huff config
+    /// @notice Create a new Huff config
     function config() public returns (HuffNeoConfig) {
         return new HuffNeoConfig();
     }
 
-    // @notice Deterministically create a new huff config using create2 and a salt
+    // @notice Deterministically create a new Huff config using create2 and a salt
     function config_with_create_2(uint256 salt) public returns (HuffNeoConfig) {
         return new HuffNeoConfig{salt: bytes32(salt)}();
     }
@@ -27,21 +27,21 @@ library HuffNeoDeployer {
             );
     }
 
-    /// @notice Compiles a Huff contract and returns the address that the contract was deployeod to
+    /// @notice Compiles a Huff contract and returns the address that the contract was deployed to
     /// @param fileName - The file name of the Huff contract. For example, the file name for "SimpleStore.huff" is "SimpleStore"
     /// @return The address that the contract was deployed to
     function deploy(string memory fileName) internal returns (address) {
         return config().deploy(fileName);
     }
 
-    /// @notice Compiles a Huff contract and returns the address that the contract was deployeod to
+    /// @notice Compiles a Huff contract and returns the address that the contract was deployed to
     /// @param fileName - The file name of the Huff contract. For example, the file name for "SimpleStore.huff" is "SimpleStore"
     /// @return The address that the contract was deployed to
     function broadcast(string memory fileName) internal returns (address) {
         return config().set_broadcast(true).deploy(fileName);
     }
 
-    /// @notice Compiles a Huff contract and returns the address that the contract was deployeod to
+    /// @notice Compiles a Huff contract and returns the address that the contract was deployed to
     /// @param fileName - The file name of the Huff contract. For example, the file name for "SimpleStore.huff" is "SimpleStore"
     /// @param value - Value to deploy with
     /// @return The address that the contract was deployed to
@@ -49,7 +49,7 @@ library HuffNeoDeployer {
         return config().with_value(value).deploy(fileName);
     }
 
-    /// @notice Compiles a Huff contract and returns the address that the contract was deployeod to
+    /// @notice Compiles a Huff contract and returns the address that the contract was deployed to
     /// @param fileName - The file name of the Huff contract. For example, the file name for "SimpleStore.huff" is "SimpleStore"
     /// @param value - Value to deploy with
     /// @return The address that the contract was deployed to
@@ -57,7 +57,7 @@ library HuffNeoDeployer {
         return config().set_broadcast(true).with_value(value).deploy(fileName);
     }
 
-    /// @notice Compiles a Huff contract and returns the address that the contract was deployeod to
+    /// @notice Compiles a Huff contract and returns the address that the contract was deployed to
     /// @param fileName - The file name of the Huff contract. For example, the file name for "SimpleStore.huff" is "SimpleStore"
     /// @param args - Constructor Args to append to the bytecode
     /// @return The address that the contract was deployed to
@@ -65,7 +65,7 @@ library HuffNeoDeployer {
         return config().with_args(args).deploy(fileName);
     }
 
-    /// @notice Compiles a Huff contract and returns the address that the contract was deployeod to
+    /// @notice Compiles a Huff contract and returns the address that the contract was deployed to
     /// @param fileName - The file name of the Huff contract. For example, the file name for "SimpleStore.huff" is "SimpleStore"
     /// @param args - Constructor Args to append to the bytecode
     /// @return The address that the contract was deployed to

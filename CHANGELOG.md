@@ -3,25 +3,22 @@
 # Foundry Huff Neo changelog
 
 ## [Unreleased]
-- __Breaking__: Rename `HuffDeployer` to `HuffDeployerNeo`
-- __Breaking__: Rename `HuffConfig` to `HuffNeoConfig`
+- __Breaking__: Rename `HuffDeployer` to `HuffDeployerNeo` and `HuffConfig` to `HuffNeoConfig`
   - Reasoning for this change:
-    - Make it more clear that this is the Neo version of the compiler
-    - Make it clear that is addon for Foundry has a different API
+    - Make it more clear that this is the Neo version of the compiler and has a potential different API
 - __Breaking__: Remove `with_code` option from `HuffDeployer`
     - Generating on the fly code has multiple issues:
         - Can cause include paths to be incorrect
         - Hides the actual code being compiled in the contract
         - Can result in incorrect source without the user knowing
-- __Breaking__: Path for `deploy()` is not prefixed with `src` anymore
-- __Breaking__: Path for `deploy()` does not add extension anymore
+        - Hides errors that would be caught by the eye of the user with syntax highlighting
+- __Breaking__: Path for `deploy(filepath)` is passed to the compiler without addition. Before the file path was prefixed with `src` and appended the `.huff`suffix.
   - Reasoning for this change:
     - For the user is more obvious that the path is a file path
-- Remove stringutils dependency
-- Update all dependencies to the latest version
-- Validate that file exists before compiling
+    - Allows to keep the file e.g. in `test` without "hacky" workarounds
+- Remove stringutils dependency (no longer needed because code is not generated on the fly)
+- Update Foundry to the latest version
 - Check stderr for errors after compilation
-- Check for zero bytecode length after compilation
-- Check if more than creation bytecode is returned
-
-- 
+- Deploy fails if:
+  - The compiler returns an error and reports the reason in `HuffNeoCompilerError`
+  - The compiler only returns creation bytecode

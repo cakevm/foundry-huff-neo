@@ -4,7 +4,7 @@ pragma solidity >=0.8.13 <0.9.0;
 import {Vm} from "forge-std/Vm.sol";
 
 contract HuffNeoConfig {
-    error HuffNeoCompilerFailed(string message);
+    error HuffNeoCompilerError(string message);
 
     /// @notice Initializes cheat codes in order to use ffi to compile Huff contracts
     Vm public constant vm = Vm(address(bytes20(uint160(uint256(keccak256("hevm cheat code"))))));
@@ -15,50 +15,50 @@ contract HuffNeoConfig {
         string value;
     }
 
-    /// @notice arguments to append to the bytecode
+    /// @notice Arguments to append to the bytecode
     bytes public args;
 
-    /// @notice value to deploy the contract with
+    /// @notice Value to deploy the contract with
     uint256 public value;
 
-    /// @notice address that will be the `msg.sender` (op: caller) in the constructor
+    /// @notice Address that will be the `msg.sender` (op: caller) in the constructor
     /// @dev set to config address to ensure backwards compatibility
     address public deployer = address(this);
 
-    /// @notice whether to broadcast the deployment tx
+    /// @notice Whether to broadcast the deployment tx
     bool public should_broadcast;
 
-    /// @notice supported evm versions
+    /// @notice EVM version to compile with
     string public evm_version;
 
-    /// @notice constant overrides for the current compilation environment
+    /// @notice Constant overrides for the current compilation environment
     Constant[] public const_overrides;
 
-    /// @notice sets the arguments to be appended to the bytecode
+    /// @notice Sets the arguments to be appended to the bytecode
     function with_args(bytes memory args_) public returns (HuffNeoConfig) {
         args = args_;
         return this;
     }
 
-    /// @notice sets the amount of wei to deploy the contract with
+    /// @notice Sets the amount of wei to deploy the contract with
     function with_value(uint256 value_) public returns (HuffNeoConfig) {
         value = value_;
         return this;
     }
 
-    /// @notice sets the caller of the next deployment
+    /// @notice Sets the caller of the next deployment
     function with_deployer(address _deployer) public returns (HuffNeoConfig) {
         deployer = _deployer;
         return this;
     }
 
-    /// @notice sets the evm version to compile with
+    /// @notice Sets the evm version to compile with. Defaults to "cancun"
     function with_evm_version(string memory _evm_version) public returns (HuffNeoConfig) {
         evm_version = _evm_version;
         return this;
     }
 
-    /// @notice sets a constant to a bytes memory value in the current compilation environment
+    /// @notice Sets a constant to a bytes memory value in the current compilation environment
     /// @dev The `value` string must contain a valid hex number that is <= 32 bytes
     ///      i.e. "0x01", "0xa57b", "0x0de0b6b3a7640000", etc.
     function with_constant(string memory key, string memory value_) public returns (HuffNeoConfig) {
@@ -66,31 +66,32 @@ contract HuffNeoConfig {
         return this;
     }
 
-    /// @notice sets a constant to an address value in the current compilation environment
+    /// @notice Sets a constant to an address value in the current compilation environment
     function with_addr_constant(string memory key, address value_) public returns (HuffNeoConfig) {
-        const_overrides.push(Constant(key, bytesToString(abi.encodePacked(value_))));
+        const_overrides.push(Constant(key, bytes_to_hex_string(abi.encodePacked(value_))));
         return this;
     }
 
-    /// @notice sets a constant to a bytes32 value in the current compilation environment
+    /// @notice Sets a constant to a bytes32 value in the current compilation environment
     function with_bytes32_constant(string memory key, bytes32 value_) public returns (HuffNeoConfig) {
-        const_overrides.push(Constant(key, bytesToString(abi.encodePacked(value_))));
+        const_overrides.push(Constant(key, bytes_to_hex_string(abi.encodePacked(value_))));
         return this;
     }
 
-    /// @notice sets a constant to a uint256 value in the current compilation environment
+    /// @notice Sets a constant to a uint256 value in the current compilation environment
     function with_uint_constant(string memory key, uint256 value_) public returns (HuffNeoConfig) {
-        const_overrides.push(Constant(key, bytesToString(abi.encodePacked(value_))));
+        const_overrides.push(Constant(key, bytes_to_hex_string(abi.encodePacked(value_))));
         return this;
     }
 
-    /// @notice sets whether to broadcast the deployment
+    /// @notice Sets whether to broadcast the deployment
     function set_broadcast(bool broadcast) public returns (HuffNeoConfig) {
         should_broadcast = broadcast;
         return this;
     }
 
-    function bytesToString(bytes memory data) public pure returns (string memory) {
+    /// @notice Convert bytes to hex string
+    function bytes_to_hex_string(bytes memory data) public pure returns (string memory) {
         bytes memory alphabet = "0123456789abcdef";
 
         bytes memory str = new bytes(2 + data.length * 2);
@@ -103,25 +104,17 @@ contract HuffNeoConfig {
         return string(str);
     }
 
-    /// @notice Get the evm version string | else return default ("shanghai")
+    /// @notice Get the evm version string | else return default ("cancun")
     function get_evm_version() public view returns (string memory) {
-        bytes32 _evm_version = bytes32(bytes(abi.encodePacked(evm_version)));
-        if (_evm_version == bytes32(0x0)) {
-            return "shanghai";
+        bytes memory _evm_version = bytes(evm_version);
+        if (_evm_version.length == 0) {
+            return "cancun";
         }
         return evm_version;
     }
 
     /// @notice Get the creation bytecode of a contract
     function creation_code(string memory filepath) public payable returns (bytes memory bytecode) {
-        // Check if the file exists (vm.isFile would require permission)
-        string[] memory check_cmds = new string[](3);
-        check_cmds[0] = "test";
-        check_cmds[1] = "-f";
-        check_cmds[2] = filepath;
-        Vm.FfiResult memory check = vm.tryFfi(check_cmds);
-        require(check.exitCode == 0, "Huff file does not exist.");
-
         // Create a list of strings with the commands necessary to compile Huff contracts
         string[] memory cmds = new string[](5);
 
@@ -148,7 +141,7 @@ contract HuffNeoConfig {
 
         // Check if the compiler failed
         if (f.exitCode != 0) {
-            revert HuffNeoCompilerFailed(string(f.stderr));
+            revert HuffNeoCompilerError(string(f.stderr));
         }
 
         bytecode = f.stdout;

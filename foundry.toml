@@ -6,5 +6,3 @@ ffi = true
 fuzz_runs = 2_000
 solc_version = '0.8.28'
 evm_version = 'cancun'
-[fmt]
-line_length = 100
