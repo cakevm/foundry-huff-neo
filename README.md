@@ -10,6 +10,16 @@
 # Foundry Huff Neo
 A [foundry](https://github.com/foundry-rs/foundry) library for working with Huff contracts using [huff-neo](https://github.com/cakevm/huff-neo). Take a look at the [project template](https://github.com/cakevm/huff-neo-project-template) to start your own project.
 
+**Highlights / Breaking changes:**
+- Multiple validations before deployment:
+  - checking stderr with `vm.tryFfi`
+  - validate that bytecode is larger zero and creation code length
+- Use fullpath `.deploy("src/Example.huff")` before it was `.deploy("Example")`
+- Removed feature to combine code on-the-fly with `.with_code(...)`
+- Remove `vm.prank` from `creation_code(..)` to avoid `vm.stopPrank();` for broadasting
+- Use latest Foundry version
+
+See the [CHANGELOG](./CHANGELOG.md) for more details.
 
 ## Installing
 First, install the [huff neo compiler](https://github.com/cakevm/huff-neo) (command `hnc`) by running (you find in the compiler repository for more options):
