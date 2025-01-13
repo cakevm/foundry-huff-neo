@@ -107,7 +107,7 @@ contract HuffNeoDeployerArguments {
 ```
 
 ## Acknowledgements
-Many thanks to the [foundry-huff](https://github.com/huff-language/foundry-huff) contributors and to the authors who maintained it for such a long period! 
+This project is a hard-fork from [foundry-huff](https://github.com/huff-language/foundry-huff). Many thanks to all contributors and to the authors who maintained it for such a long period! 
 
 ## License
 This project is licensed under the [Apache 2.0 license](./LICENSE).
