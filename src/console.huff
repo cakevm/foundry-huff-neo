@@ -1,0 +1,52 @@
+#include "console_call.huff"
+#include "console_generated.huff"
+
+/// Consumes bytes from the stack and logs it to the console
+#define macro LOG_BYTES(elements, length, memoryOffset) = takes(1) returns(0) {
+    <elements> // stack elements
+    __FUNC_SIG('log(bytes)')
+    PREPARE_AND_CALL_CONSOLE(<length>, <memoryOffset>)
+}
+
+/// Consumes string from the stack and logs it to the console
+#define macro LOG_STRING(elements, length, memoryOffset) = takes(1) returns(0) {
+    <elements> // stack elements
+    __FUNC_SIG('log(string)')
+    PREPARE_AND_CALL_CONSOLE(<length>, <memoryOffset>)
+}
+
+#define test TEST_LOG() = {
+    // log address
+    0x0101010101010101010101010101010101010101
+    LOG_ADDRESS(0x00) // 0x00 = memory offset for building calldata
+
+    // log bool
+    0x01
+    LOG_BOOL(0x00)
+
+    // log uint256
+    0x1B4B68192611FAEA208FCA21627BE9DAE6C3F2564D42588FB1119DAE7C9F4B87
+    LOG_UINT256(0x00)
+
+    // log bytes32
+    0x0101010101010101010101010101010101010101010101010101010101010101
+    LOG_BYTES32(0x00)
+
+    // log address, uint256, bool
+    0x01
+    0x7b // 0x7b = 123
+    0x0101010101010101010101010101010101010101
+    LOG_ADDRESS_UINT256_BOOL(0x00)
+
+    // log bytes
+    __RIGHTPAD(0x7b7b) // 123123
+    0x2 // bytes length
+    0x20 // offset to start of the content
+    LOG_BYTES(0x3, 0x64, 0x00) // 0x3 = 3 stack elements for the calldata, 0x64 = (4 + 32 + 32 + 32)
+
+    // log string
+    __RIGHTPAD(0x68656c6c6f20776f726c64) // utf8 representation of "hello world"
+    0x0b // number of bytes of the UTF-8 encoded string -> 0x0b = 11
+    0x20 // offset to start of the content
+    LOG_STRING(0x3, 0x64, 0x00) // 0x3 = 3 stack elements for the calldata, 0x64 = (4 + 32 + 32 + 32)
+}
