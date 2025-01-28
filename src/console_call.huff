@@ -1,0 +1,38 @@
+#define constant CONSOLE_ADDRESS = 0x000000000000000000636F6e736F6c652e6c6f67
+
+// Consumes [selector, data_count, data, data, ...] from the stack and calls the console contract
+#define macro PREPARE_AND_CALL_CONSOLE(inputLength, memoryOffset) = takes (0) returns (0) {
+    // prepare the calldata
+    0xe0 shl                       // shift the selector to the left
+    <memoryOffset> mstore          // store the selector to memory
+    0x04                           // [offset, data_count, data, data, ...] // 0x04 = 4 bytes for the selector
+    swap1                          // [data_count, offset, data, data, ...]
+    loop:
+        0x01                       // [0x01, data_count, offset, data, data, ...]
+        swap1                      // [data_count, 0x01, offset, data, data, ...]
+        sub                        // [data_count - 1, offset, data, data, ...]
+        swap1                      // [offset, data_count - 1, data, data, ...]
+        <memoryOffset> add         // [offset + memoryOffset, data_count - 1, data, data, ...]
+        dup1                       // [offset + memoryOffset, offset + memoryOffset, data_count - 1, data, data, ...]
+        swap3                      // [data, offset + memoryOffset, data_count - 1, offset + memoryOffset, data, ...]
+        swap1                      // [offset + memoryOffset, data, data_count - 1, offset + memoryOffset, data, ...]
+        mstore                     // [data_count - 1, offset + memoryOffset, data, ...]
+        swap1                      // [offset + memoryOffset, data_count - 1, data, ...]
+        0x20 add                   // [offset + memoryOffset + 32, data_count - 1, data, ...]
+        dup2                       // [data_count - 1, offset + memoryOffset + 32, data_count - 1, data, ...]
+        iszero call_contract jumpi // [offset + memoryOffset + 32, data_count - 1, data, ...]
+        swap1                      // [data_count - 1, offset + memoryOffset + 32, data, ...]
+        loop jump
+
+    call_contract:
+        0x00                       // retSize
+        0x00                       // retOffset
+        <inputLength>              // inSize
+        <memoryOffset>             // inOffset
+        [CONSOLE_ADDRESS]          // address
+        gas                        // gas
+        staticcall
+
+        // cleanup
+        pop                        // pop the "success" flag
+}
