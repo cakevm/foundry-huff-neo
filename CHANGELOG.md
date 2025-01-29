@@ -3,8 +3,10 @@
 # Foundry Huff Neo changelog
 
 ## [Unreleased]
+
+## [1.0.1] - 2025-01-29
 - Add macros for `console.log` functionalities for Huff contracts.
-  - See `test/console.t.huff` for examples.
+  - See `test/console.t.huff` for usage examples.
 
 ## [1.0.0] - 2025-01-12
 - __Breaking__: Rename `HuffDeployer` to `HuffDeployerNeo` and `HuffConfig` to `HuffNeoConfig`
