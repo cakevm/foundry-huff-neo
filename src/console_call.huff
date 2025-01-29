@@ -3,7 +3,6 @@
 // Consumes [selector, data_count, data, data, ...] from the stack and calls the console contract
 #define macro PREPARE_AND_CALL_CONSOLE(inputLength, memoryOffset) = takes (0) returns (0) {
     // prepare the calldata
-    0xe0 shl                       // shift the selector to the left
     <memoryOffset> mstore          // store the selector to memory
     0x04                           // [offset, data_count, data, data, ...] // 0x04 = 4 bytes for the selector
     swap1                          // [data_count, offset, data, data, ...]

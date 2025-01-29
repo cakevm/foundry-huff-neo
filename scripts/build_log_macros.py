@@ -3,14 +3,29 @@ import re
 
 PATH = os.path.dirname(os.path.abspath(__file__))
 
-template = """
+template_fixed_sized_types = """
 /// Consumes {commentArguments} from the stack and logs it to the console
 #define macro {macroName}(memoryOffset) = takes({stackElementCount}) returns(0) {
     0x{stackElementCount} // stack elements
-    __FUNC_SIG('log({arguments})')
+    __RIGHTPAD(__FUNC_SIG('log({arguments})'))
     PREPARE_AND_CALL_CONSOLE({calldataLength}, <memoryOffset>)
 }
 """
+
+template_variable_types = """
+/// Consumes {commentArguments} from the stack and logs it to the console
+#define macro {macroName}(elements, inSize, memoryOffset) = takes(0) returns(0) {
+    <elements> // stack elements
+    __RIGHTPAD(__FUNC_SIG('log({arguments})'))
+    PREPARE_AND_CALL_CONSOLE(<inSize>, <memoryOffset>)
+}
+"""
+
+def is_variable_type(log_string):
+    for elm in log_string.split(","):
+        if elm == "bytes" or elm == "string":
+            return True
+    return False
 
 def main():
     with open(os.path.join(PATH, '../lib/forge-std/src/console.sol'), 'r') as file:
@@ -29,13 +44,6 @@ def main():
 
     processed = {}
     for log_string in log_strings:
-        skip = False
-        # Macros for bytes and string are implemented in console.huff
-        for elm in log_string.split(","):
-            if elm == "bytes" or elm == "string":
-                skip = True
-        if skip:
-            continue
         if log_string in processed:
             continue
         processed[log_string] = True
@@ -43,6 +51,10 @@ def main():
         method_name = "LOG" + ("_" if log_string else "") + log_string.replace(",", "_").upper()
         comment_arguments = log_string.replace(",", ", ") if log_string else "nothing"
         element_count = len(log_string.split(",")) if log_string else 0
+        if is_variable_type(log_string):
+            template = template_variable_types
+        else:
+            template = template_fixed_sized_types
         ret = template \
             .replace("{commentArguments}", comment_arguments) \
             .replace("{macroName}", method_name) \
@@ -52,7 +64,7 @@ def main():
 
         output += ret.strip() + "\n\n"
 
-    with open(os.path.join(PATH, '../src/console_generated.huff'), 'w') as file:
+    with open(os.path.join(PATH, '../src/console.huff'), 'w') as file:
         file.write(output)
 
 if __name__ == "__main__":
