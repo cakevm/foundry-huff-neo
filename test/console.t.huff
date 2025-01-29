@@ -30,15 +30,15 @@
     LOG_BYTES(0x3, 0x64, 0x00) // 0x3 = 3 stack elements for the calldata, 0x64 = (4 + 32 + 32 + 32)
 
     // log string
-    __RIGHTPAD(0x68656c6c6f20776f726c64) // utf8 representation of "hello world"
+    __RIGHTPAD(__BYTES("hello world")) // UTF-8 bytes representation of "hello world"
     0x0b // number of bytes of the UTF-8 encoded string -> 0x0b = 11
     0x20 // offset to start of the content
     LOG_STRING(0x3, 0x64, 0x00) // 0x3 = 3 stack elements for the calldata, 0x64 = (4 + 32 + 32 + 32)
 
     // log string, string
-    __RIGHTPAD(0x68656c6c6f20776f726c642032) // utf8 representation of "hello world 2"
+    __RIGHTPAD(__BYTES("hello world 2")) // UTF-8 bytes representation of "hello world 2"
     0x0d // number of bytes of the second UTF-8 encoded string -> 0x0d = 13
-    __RIGHTPAD(0x68656c6c6f20776f726c64) // utf8 representation of "hello world"
+    __RIGHTPAD(__BYTES("hello world")) // UTF-8 bytes representation of "hello world"
     0x0b // number of bytes of the first UTF-8 encoded string -> 0x0b = 11
     0x80 // offset to start of second string
     0x40 // offset to start of first string
