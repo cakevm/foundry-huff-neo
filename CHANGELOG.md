@@ -4,6 +4,14 @@
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-01-02
+- **Breaking**: Refactored `HuffNeoConfig` from a contract to a library with `HuffConfig` struct
+  - No more config contract deployed alongside your Huff contract
+  - Default deployer is now `msg.sender` instead of the config contract address
+- **Breaking**: `get_config_with_create_2(salt)` replaced by `get_create_2_address(salt, file)`
+- Default EVM version changed from `cancun` to `osaka`
+- Updated to Solidity 0.8.33
+
 ## [1.0.1] - 2025-01-29
 - Add macros for `console.log` functionalities for Huff contracts.
   - See `test/console.t.huff` for usage examples.
