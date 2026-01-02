@@ -3,12 +3,14 @@ pragma solidity >=0.7.0 <0.9.0;
 
 import "forge-std/Test.sol";
 
-import {HuffNeoConfig} from "../src/HuffNeoConfig.sol";
+import {HuffConfig, HuffNeoConfig} from "../src/HuffNeoConfig.sol";
 import {HuffNeoDeployer} from "../src/HuffNeoDeployer.sol";
 import {INumber} from "./interfaces/INumber.sol";
 import {IConstructor} from "./interfaces/IConstructor.sol";
 
 contract LoggingTest is Test {
+    using HuffNeoConfig for HuffConfig;
+
     event LogOne();
     event LogTwo(address indexed a);
     event LogThree(address indexed a, uint256 indexed b);
@@ -28,19 +30,20 @@ contract LoggingTest is Test {
         assertEq(entries[0].topics[0], bytes32(uint256(keccak256("LogOne()"))));
         assertEq(entries[1].topics.length, 2);
         assertEq(entries[1].topics[0], bytes32(uint256(keccak256("LogTwo(address)"))));
-        // assertEq(entries[1].topics[1], ?); should be address from deployed config
+        // Deployer is msg.sender (the transaction sender)
+        assertEq(entries[1].topics[1], bytes32(uint256(uint160(msg.sender))));
         assertEq(entries[2].topics.length, 3);
         assertEq(entries[2].topics[0], bytes32(uint256(keccak256("LogThree(address,uint256)"))));
-        // assertEq(entries[2].topics[1], ?); should be address from deployed config
+        assertEq(entries[2].topics[1], bytes32(uint256(uint160(msg.sender))));
         assertEq(entries[2].topics[2], bytes32(uint256(0x0)));
         assertEq(entries[3].topics.length, 4);
         assertEq(entries[3].topics[0], bytes32(uint256(keccak256("LogFour(address,uint256,bytes32)"))));
-        // assertEq(entries[3].topics[1], ?); should be address from deployed config
+        assertEq(entries[3].topics[1], bytes32(uint256(uint160(msg.sender))));
         assertEq(entries[3].topics[2], bytes32(uint256(0x0)));
         assertEq(entries[3].topics[3], bytes32(uint256(keccak256(abi.encode(1)))));
         assertEq(entries[4].topics.length, 4);
         assertEq(entries[4].topics[0], bytes32(uint256(keccak256("Extended(address,uint256,bytes32,bytes32,bytes32)"))));
-        // assertEq(entries[4].topics[1], ?); should be address from deployed config
+        assertEq(entries[4].topics[1], bytes32(uint256(uint160(msg.sender))));
         assertEq(entries[4].topics[2], bytes32(uint256(0x0)));
         assertEq(entries[4].topics[3], bytes32(uint256(keccak256(abi.encode(1)))));
         assertEq(entries[4].data, abi.encode(keccak256(abi.encode(2)), keccak256(abi.encode(3))));
@@ -57,13 +60,14 @@ contract LoggingTest is Test {
     }
 
     function testConfigLogging() public {
-        HuffNeoConfig config = HuffNeoDeployer.config().with_args(abi.encode(address(0x420)));
+        // The deployer is msg.sender (the transaction sender)
+        HuffConfig memory cfg = HuffNeoDeployer.config().with_args(abi.encode(address(0x420)));
         vm.expectEmit(true, true, true, true);
         emit LogOne();
-        emit LogTwo(address(config));
-        emit LogThree(address(config), 0);
-        emit LogFour(address(config), 0, keccak256(abi.encode(1)));
-        emit Extended(address(config), 0, keccak256(abi.encode(1)), keccak256(abi.encode(2)), keccak256(abi.encode(3)));
-        config.deploy("test/contracts/LotsOfLogging.huff");
+        emit LogTwo(msg.sender);
+        emit LogThree(msg.sender, 0);
+        emit LogFour(msg.sender, 0, keccak256(abi.encode(1)));
+        emit Extended(msg.sender, 0, keccak256(abi.encode(1)), keccak256(abi.encode(2)), keccak256(abi.encode(3)));
+        cfg.deploy("test/contracts/LotsOfLogging.huff");
     }
 }

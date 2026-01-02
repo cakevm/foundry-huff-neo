@@ -3,13 +3,15 @@ pragma solidity >=0.7.0 <0.9.0;
 
 import "forge-std/Test.sol";
 
-import {HuffNeoConfig} from "../src/HuffNeoConfig.sol";
+import {HuffConfig, Constant, HuffNeoConfig} from "../src/HuffNeoConfig.sol";
 import {HuffNeoDeployer} from "../src/HuffNeoDeployer.sol";
 import {INumber} from "./interfaces/INumber.sol";
 import {IConstructor} from "./interfaces/IConstructor.sol";
 import {IRememberCreator} from "./interfaces/IRememberCreator.sol";
 
 contract HuffNeoDeployerTest is Test {
+    using HuffNeoConfig for HuffConfig;
+
     INumber private number;
     IConstructor private structor;
 
@@ -87,12 +89,14 @@ contract HuffNeoDeployerTest is Test {
 
     function testWithValueDeployment() public {
         uint256 value = 1 ether;
-        HuffNeoDeployer.config().with_value(value).deploy{value: value}("test/contracts/ConstructorNeedsValue.huff");
+        vm.deal(address(this), value);
+        HuffNeoDeployer.config().with_value(value).deploy("test/contracts/ConstructorNeedsValue.huff");
     }
 
     function testWithValueDeployment_Create2() public {
         uint256 value = 1 ether;
-        HuffNeoDeployer.config_with_create_2(1).with_value(value).deploy{value: value}("test/contracts/ConstructorNeedsValue.huff");
+        vm.deal(address(this), value);
+        HuffNeoDeployer.config_with_create_2(1).with_value(value).deploy("test/contracts/ConstructorNeedsValue.huff");
     }
 
     function testConstantOverride() public {
@@ -172,9 +176,9 @@ contract HuffNeoDeployerTest is Test {
     }
 
     function testConstructorDefaultCaller() public {
-        HuffNeoConfig config = HuffNeoDeployer.config();
-        IRememberCreator rememberer = IRememberCreator(config.deploy("test/contracts/RememberCreator.huff"));
-        assertEq(rememberer.CREATOR(), address(config));
+        // Default deployer is msg.sender (the transaction sender)
+        IRememberCreator rememberer = IRememberCreator(HuffNeoDeployer.config().deploy("test/contracts/RememberCreator.huff"));
+        assertEq(rememberer.CREATOR(), msg.sender);
     }
 
     function runTestConstructorCaller(address deployer) public {
@@ -196,7 +200,7 @@ contract HuffNeoDeployerTest is Test {
     function testSettingEVMVersion() public {
         /// expected bytecode for EVM version "paris"
         bytes memory expectedParis = hex"6000"; // PUSH1 0x00
-        HuffNeoConfig parisConfig = HuffNeoDeployer.config().with_evm_version("paris");
+        HuffConfig memory parisConfig = HuffNeoDeployer.config().with_evm_version("paris");
         assertEq(parisConfig.get_evm_version(), "paris");
 
         address withParis = parisConfig.deploy("test/contracts/EVMVersionCheck.huff");
@@ -205,16 +209,16 @@ contract HuffNeoDeployerTest is Test {
 
         /// expected bytecode for EVM version "shanghai"
         bytes memory expectedShanghai = hex"5f"; // PUSH0
-        HuffNeoConfig shanghaiConfig = HuffNeoDeployer.config().with_evm_version("shanghai");
+        HuffConfig memory shanghaiConfig = HuffNeoDeployer.config().with_evm_version("shanghai");
         assertEq(shanghaiConfig.get_evm_version(), "shanghai");
 
         address withShanghai = shanghaiConfig.deploy("test/contracts/EVMVersionCheck.huff");
         bytes memory shanghaiBytecode = withShanghai.code;
         assertEq(shanghaiBytecode, expectedShanghai);
 
-        /// Default should be cancun (latest) which return the same as "shanghai"
-        HuffNeoConfig defaultConfig = HuffNeoDeployer.config();
-        assertEq(defaultConfig.get_evm_version(), "cancun");
+        /// Default should be osaka (latest) which returns the same as "shanghai"
+        HuffConfig memory defaultConfig = HuffNeoDeployer.config();
+        assertEq(defaultConfig.get_evm_version(), "osaka");
 
         address withDefault = defaultConfig.deploy("test/contracts/EVMVersionCheck.huff");
         bytes memory defaultBytecode = withDefault.code;
@@ -223,22 +227,27 @@ contract HuffNeoDeployerTest is Test {
 
     /// @dev test that the deployment fails when the compiler returns an error
     function testEmpty() public {
-        HuffNeoConfig config = HuffNeoDeployer.config();
-        vm.expectRevert();
-        config.deploy("test/contracts/Empty.huff");
+        try this.deployHelper("test/contracts/Empty.huff") {
+            revert("Should have reverted");
+        } catch {}
     }
 
     /// @dev test that the deployment fails when the compiler returns an error
     function testEmptyMain() public {
-        HuffNeoConfig config = HuffNeoDeployer.config();
-        vm.expectRevert();
-        config.deploy("test/contracts/EmptyMain.huff");
+        try this.deployHelper("test/contracts/EmptyMain.huff") {
+            revert("Should have reverted");
+        } catch {}
     }
 
     /// @dev test that the deployment fails if the file does not exists
     function testFileDoesNotExists() public {
-        HuffNeoConfig config = HuffNeoDeployer.config();
-        vm.expectRevert();
-        config.deploy("DOES_NOT_EXISTS");
+        try this.deployHelper("DOES_NOT_EXISTS") {
+            revert("Should have reverted");
+        } catch {}
+    }
+
+    /// @dev Helper function to test reverts in library calls
+    function deployHelper(string calldata file) external returns (address) {
+        return HuffNeoDeployer.config().deploy(file);
     }
 }
