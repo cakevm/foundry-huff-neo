@@ -60,7 +60,11 @@ library HuffNeoConfig {
     }
 
     /// @notice Sets the evm version to compile with. Defaults to "cancun"
-    function with_evm_version(HuffConfig memory self, string memory _evm_version) internal pure returns (HuffConfig memory) {
+    function with_evm_version(HuffConfig memory self, string memory _evm_version)
+        internal
+        pure
+        returns (HuffConfig memory)
+    {
         self.evm_version = _evm_version;
         return self;
     }
@@ -68,7 +72,11 @@ library HuffNeoConfig {
     /// @notice Sets a constant to a bytes memory value in the current compilation environment
     /// @dev The `value` string must contain a valid hex number that is <= 32 bytes
     ///      i.e. "0x01", "0xa57b", "0x0de0b6b3a7640000", etc.
-    function with_constant(HuffConfig memory self, string memory key, string memory value_) internal pure returns (HuffConfig memory) {
+    function with_constant(HuffConfig memory self, string memory key, string memory value_)
+        internal
+        pure
+        returns (HuffConfig memory)
+    {
         require(self.const_count < 32, "HuffNeoConfig: max 32 constant overrides");
         self.const_overrides[self.const_count] = Constant(key, value_);
         self.const_count++;
@@ -76,17 +84,29 @@ library HuffNeoConfig {
     }
 
     /// @notice Sets a constant to an address value in the current compilation environment
-    function with_addr_constant(HuffConfig memory self, string memory key, address value_) internal pure returns (HuffConfig memory) {
+    function with_addr_constant(HuffConfig memory self, string memory key, address value_)
+        internal
+        pure
+        returns (HuffConfig memory)
+    {
         return with_constant(self, key, bytes_to_hex_string(abi.encodePacked(value_)));
     }
 
     /// @notice Sets a constant to a bytes32 value in the current compilation environment
-    function with_bytes32_constant(HuffConfig memory self, string memory key, bytes32 value_) internal pure returns (HuffConfig memory) {
+    function with_bytes32_constant(HuffConfig memory self, string memory key, bytes32 value_)
+        internal
+        pure
+        returns (HuffConfig memory)
+    {
         return with_constant(self, key, bytes_to_hex_string(abi.encodePacked(value_)));
     }
 
     /// @notice Sets a constant to a uint256 value in the current compilation environment
-    function with_uint_constant(HuffConfig memory self, string memory key, uint256 value_) internal pure returns (HuffConfig memory) {
+    function with_uint_constant(HuffConfig memory self, string memory key, uint256 value_)
+        internal
+        pure
+        returns (HuffConfig memory)
+    {
         return with_constant(self, key, bytes_to_hex_string(abi.encodePacked(value_)));
     }
 
@@ -157,7 +177,10 @@ library HuffNeoConfig {
     }
 
     /// @notice get creation code of a contract plus encoded arguments
-    function creation_code_with_args(HuffConfig memory self, string memory file) internal returns (bytes memory bytecode) {
+    function creation_code_with_args(HuffConfig memory self, string memory file)
+        internal
+        returns (bytes memory bytecode)
+    {
         bytecode = creation_code(self, file);
         return bytes.concat(bytecode, self.args);
     }

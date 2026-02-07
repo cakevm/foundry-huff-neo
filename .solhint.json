@@ -1,10 +1,19 @@
 {
-  "extends": "solhint:default",
+  "extends": "solhint:recommended",
   "rules": {
-    "prettier/prettier": "error",
-    "compiler-version": ["error", "<=0.8.28"],
+    "compiler-version": ["error", "<=0.8.33"],
     "max-line-length": "off",
-    "no-console": "off"
-  },
-  "plugins": ["prettier"]
+    "no-console": "off",
+    "func-name-mixedcase": "off",
+    "var-name-mixedcase": "off",
+    "const-name-snakecase": "off",
+    "use-natspec": "off",
+    "no-inline-assembly": "off",
+    "reason-string": "off",
+    "gas-custom-errors": "off",
+    "gas-small-strings": "off",
+    "gas-increment-by-one": "off",
+    "no-unused-import": "off",
+    "import-path-check": "off"
+  }
 }
