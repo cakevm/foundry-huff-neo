@@ -66,7 +66,9 @@ contract HuffNeoConfigTest is Test {
 
         // Add 32 constants (max allowed)
         for (uint256 i = 0; i < 32; i++) {
-            cfg = cfg.with_constant(string(abi.encodePacked("key", vm.toString(i))), string(abi.encodePacked("0x", vm.toString(i))));
+            cfg = cfg.with_constant(
+                string(abi.encodePacked("key", vm.toString(i))), string(abi.encodePacked("0x", vm.toString(i)))
+            );
         }
 
         assertEq(cfg.const_count, 32);
@@ -77,7 +79,9 @@ contract HuffNeoConfigTest is Test {
 
         // Add 32 constants (max allowed)
         for (uint256 i = 0; i < 32; i++) {
-            cfg = cfg.with_constant(string(abi.encodePacked("key", vm.toString(i))), string(abi.encodePacked("0x", vm.toString(i))));
+            cfg = cfg.with_constant(
+                string(abi.encodePacked("key", vm.toString(i))), string(abi.encodePacked("0x", vm.toString(i)))
+            );
         }
 
         // Adding 33rd should revert - use try/catch for internal function
@@ -92,13 +96,8 @@ contract HuffNeoConfigTest is Test {
     }
 
     function testChaining() public {
-        HuffConfig memory cfg = HuffNeoDeployer
-            .config()
-            .with_deployer(address(0x1234))
-            .with_value(1 ether)
-            .with_evm_version("shanghai")
-            .set_broadcast(true)
-            .with_constant("KEY", "0x123");
+        HuffConfig memory cfg = HuffNeoDeployer.config().with_deployer(address(0x1234)).with_value(1 ether)
+            .with_evm_version("shanghai").set_broadcast(true).with_constant("KEY", "0x123");
 
         assertEq(cfg.deployer, address(0x1234));
         assertEq(cfg.value, 1 ether);

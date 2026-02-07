@@ -20,8 +20,7 @@ contract LoggingTest is Test {
     function testLoggingWithArgs() public {
         vm.recordLogs();
         HuffNeoDeployer.deploy_with_args(
-            "test/contracts/LotsOfLogging.huff",
-            bytes.concat(abi.encode(address(0x420)), abi.encode(uint256(0x420)))
+            "test/contracts/LotsOfLogging.huff", bytes.concat(abi.encode(address(0x420)), abi.encode(uint256(0x420)))
         );
         Vm.Log[] memory entries = vm.getRecordedLogs();
 

@@ -4,11 +4,11 @@ test:
 
 .PHONY: fmt
 fmt:
-	npm run fmt
+	forge fmt
 
 .PHONY: fmt-check
 fmt-check:
-	npm run fmt-check
+	forge fmt --check
 
 .PHONY: lint
 lint:

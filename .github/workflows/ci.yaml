@@ -16,7 +16,9 @@ jobs:
         with:
           submodules: recursive
 
-      - run: npm install --save-dev
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+
       - run: make fmt-check
 
   lint-check:
@@ -28,7 +30,7 @@ jobs:
         with:
           submodules: recursive
 
-      - run: npm install --save-dev
+      - run: npm install
       - run: make lint-check
 
   tests:
@@ -42,8 +44,6 @@ jobs:
 
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
-        with:
-          version: nightly
 
       - name: Install Huff
         uses: cakevm/huff-neo-toolchain@v1

@@ -34,7 +34,11 @@ library HuffNeoDeployer {
     function get_create_2_address(uint256 salt, string memory file) internal returns (address) {
         HuffConfig memory c = config_with_create_2(salt);
         bytes memory bytecode = c.creation_code_with_args(file);
-        return address(uint160(uint256(keccak256(abi.encodePacked(bytes1(0xff), address(this), bytes32(salt), keccak256(bytecode))))));
+        return address(
+            uint160(
+                uint256(keccak256(abi.encodePacked(bytes1(0xff), address(this), bytes32(salt), keccak256(bytecode))))
+            )
+        );
     }
 
     /// @notice Compiles a Huff contract and returns the address that the contract was deployed to
