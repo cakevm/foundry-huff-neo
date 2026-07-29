@@ -38,9 +38,7 @@ address addr = HuffNeoDeployer.deploy("src/MyContract.huff");
 Deploy with constructor arguments:
 ```solidity
 address addr = HuffNeoDeployer
-    .config()
-    .with_args(abi.encode(arg1, arg2))
-    .deploy("src/MyContract.huff");
+    .deploy_with_args("src/MyContract.huff", abi.encode(arg1, arg2));
 ```
 
 ## Deployment
