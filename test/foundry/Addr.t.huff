@@ -4,24 +4,6 @@
 
 #include "../../src/test.huff"
 
-/// Consumes [success, length, chunk_1, ..., chunk_n] and fails the test unless the last call failed
-/// with `CheatcodeError(string)` carrying the `length` bytes of the chunks as its message
-#define macro EXPECT_CHEATCODE_ERROR(chunks) = takes(0) returns(0) {
-    returndatasize 0x00 0x00 returndatacopy  // the revert data at 0x00
-    ASSERT_FALSE()                           // the call failed
-    0xeeaa9e6f 0x00 mload 0xe0 shr ASSERT_EQ()
-
-    0x1000 mstore                            // the expected message at 0x1000: length, then data
-    0x1020
-    for (i in 0..<chunks>) {
-        swap1 dup2 mstore 0x20 add
-    }
-    pop
-    0x1000 mload 0x1020 sha3                 // [expected hash]
-    0x24 mload 0x44 sha3                     // [actual hash, expected hash]
-    ASSERT_EQ_BYTES32()
-}
-
 #define test REVERT_IF_PK_ZERO() = {
     // vm.expectRevert("vm.addr: private key cannot be 0"); vm.addr(0);
     __RIGHTPAD(__BYTES("vm.addr: private key cannot be 0")) 0x20

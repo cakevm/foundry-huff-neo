@@ -80,6 +80,31 @@
     __FUNC_SIG("assertTrue(bool,string)") CALL_CHEATCODE(0x04)
 }
 
+/// Consumes [success, length, chunk_1, ..., chunk_n] and fails the test unless the last call failed
+/// with `CheatcodeError(string)`, the error of a failed cheatcode, carrying the `length` bytes of the
+/// chunks as its message. A message is pushed as 32-byte chunks, last chunk first, then its length,
+/// before the call that pushes the success flag.
+#define macro EXPECT_CHEATCODE_ERROR(chunks) = takes(0) returns(0) {
+    msize                              // [memory, success, length, chunk_1, ...]
+    swap1 dup2 mstore                  // [memory, length, chunk_1, ...]       success at memory
+    swap1 dup2 0x20 add mstore         // [memory, chunk_1, ...]               length at memory + 32
+    dup1 0x40 add                      // [pointer, memory, chunk_1, ...]      message from memory + 64
+    for (i in 0..<chunks>) {
+        swap2 dup3 mstore              // [memory, pointer, chunk_2, ...]
+        swap1 0x20 add                 // [pointer + 32, memory, chunk_2, ...]
+    }
+    returndatasize 0x00 dup3 returndatacopy  // the revert data after the message, before the next call
+
+    dup2 mload ASSERT_FALSE()          // the call failed
+    __FUNC_SIG("CheatcodeError(string)") dup2 mload 0xe0 shr ASSERT_EQ()
+    dup1 0x24 add mload                // [actual length, revert data, memory]
+    dup2 0x44 add sha3                 // [actual hash, revert data, memory]
+    dup3 0x20 add mload                // [expected length, actual hash, revert data, memory]
+    dup4 0x40 add sha3                 // [expected hash, actual hash, revert data, memory]
+    ASSERT_EQ_BYTES32()
+    pop pop
+}
+
 /* ── Assertions ── */
 
 /// Consumes [left, right] and fails the test unless the two words are equal

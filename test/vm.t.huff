@@ -107,6 +107,13 @@
     ASSERT_TRUE()
 }
 
+#define test FAILED_CHEATCODE_MESSAGE() = {
+    // vm.addr(0) fails with "vm.addr: private key cannot be 0"
+    __RIGHTPAD(__BYTES("vm.addr: private key cannot be 0")) 0x20
+    0x00 __FUNC_SIG("addr(uint256)") [VM_ADDRESS] CALL_FUNCTION(0x01)
+    EXPECT_CHEATCODE_ERROR(0x01)
+}
+
 /* ── Dynamic values ── */
 
 #define test TO_STRING_WRITES_THE_RETURN_DATA() = {

@@ -75,6 +75,7 @@ hnc test/MyContract.t.huff test
 - `ASSERT_EQ`, `ASSERT_NOT_EQ`, `ASSERT_LT`, `ASSERT_LE`, `ASSERT_GT`, `ASSERT_GE`, their signed `_INT` versions, `ASSERT_EQ_ADDRESS`, `ASSERT_EQ_BYTES32`, `ASSERT_TRUE` and `ASSERT_FALSE`.
 - `CALL_FUNCTION(words)`, `CALL_FUNCTION_WITH_VALUE(words)` and `STATICCALL_FUNCTION(words)` call a contract with a selector and argument words. `LAST_RETURN_WORD` reads the return data, before the next call or assertion replaces it.
 - `EXPECT_REVERT_CALL(words)` expects a call to revert with an error and fails the test unless it does.
+- `EXPECT_CHEATCODE_ERROR(chunks)` fails the test unless the last call failed with a cheatcode error carrying the given message, such as `vm.addr(0)` failing with "vm.addr: private key cannot be 0".
 
 A failed cheatcode or assertion reverts with its message and stops the test. After `VM_EXPECT_REVERT`, an expected revert makes the call report success, so check the flag with `ASSERT_TRUE`, or use `EXPECT_REVERT_CALL`.
 
