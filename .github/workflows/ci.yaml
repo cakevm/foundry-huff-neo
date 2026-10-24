@@ -37,6 +37,8 @@ jobs:
     name: make test
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    env:
+      MAINNET_HTTP: ${{ secrets.MAINNET_HTTP }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -56,7 +58,10 @@ jobs:
       - name: Run Huff Tests
         run: make test-huff
 
+      # Runs only where the MAINNET_HTTP secret is available
       - name: Run Huff Fork Tests
+        if: env.MAINNET_HTTP != ''
         run: make test-huff-fork
-        env:
-          MAINNET_HTTP: ${{ secrets.MAINNET_HTTP }}
+
+      - name: Check src/vm.huff is generated from Vm.sol
+        run: python3 scripts/build_vm_macros.py && git diff --exit-code src/vm.huff

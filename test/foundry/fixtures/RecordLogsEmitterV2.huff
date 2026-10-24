@@ -1,3 +1,4 @@
+// Ported from Foundry's testdata (Foundry v1.8.6, MIT OR Apache-2.0)
 // Huff version of the `Emitterv2` contract in Foundry's testdata/default/cheats/RecordLogs.t.sol.
 // Instead of deploying its Emitter in a constructor, it reads the Emitter's address from slot 0,
 // which the test sets with a `store` decorator.

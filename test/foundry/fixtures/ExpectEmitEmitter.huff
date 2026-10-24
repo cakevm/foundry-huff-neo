@@ -1,3 +1,4 @@
+// Ported from Foundry's testdata (Foundry v1.8.6, MIT OR Apache-2.0)
 // Huff version of the `Emitter` contract in Foundry's testdata/default/cheats/ExpectEmit.t.sol, without
 // `thing` and `changeThing`, which the ported tests do not use.
 // Runtime bytecode for ExpectEmit.t.huff: `hnc test/foundry/fixtures/ExpectEmitEmitter.huff -r`

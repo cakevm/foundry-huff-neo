@@ -1,3 +1,4 @@
+// Ported from Foundry's testdata (Foundry v1.8.6, MIT OR Apache-2.0)
 // Foundry's `Victim` helper contract from Prank.t.sol: instead of asserting, it returns the
 // msg.sender and tx.origin it sees, so the test can assert them.
 // Runtime bytecode: hnc PrankVictim.huff -r

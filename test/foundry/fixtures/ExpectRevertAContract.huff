@@ -1,3 +1,4 @@
+// Ported from Foundry's testdata (Foundry v1.8.6, MIT OR Apache-2.0)
 // Huff version of the `AContract` contract in Foundry's testdata/default/cheats/ExpectRevert.t.sol,
 // with its BContract at 0x3002 and CContract at 0x3003.
 // Runtime bytecode for ExpectRevert.t.huff, etched at 0x3001:

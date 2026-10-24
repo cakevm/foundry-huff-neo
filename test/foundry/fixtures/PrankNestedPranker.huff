@@ -1,3 +1,4 @@
+// Ported from Foundry's testdata (Foundry v1.8.6, MIT OR Apache-2.0)
 // Foundry's `NestedPranker` and `NestedCreatePranker` helper contracts from Prank.t.sol, pranking
 // with the fixed sender 0xa11ce and origin 0xdeadbeef. completePrank calls the
 // PrankNestedVictim.huff contract at 0x2000 and returns what it saw before and after stopPrank.

@@ -1,3 +1,4 @@
+// Ported from Foundry's testdata (Foundry v1.8.6, MIT OR Apache-2.0)
 // Foundry's `ConstructorVictim` helper contract from Prank.t.sol: the constructor stores the
 // msg.sender and tx.origin it sees, and the runtime code returns the msg.sender and tx.origin of
 // the call, then those the constructor saw.

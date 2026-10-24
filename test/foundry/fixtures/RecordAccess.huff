@@ -1,3 +1,4 @@
+// Ported from Foundry's testdata (Foundry v1.8.6, MIT OR Apache-2.0)
 // RecordAccess and NestedRecordAccess of Foundry's testdata/default/cheats/Record.t.sol.
 // record() bumps slot 1, deploys a NestedRecordAccess, calls its record(), which bumps slot 2, and
 // returns its address. Compile the runtime code with `hnc test/foundry/fixtures/RecordAccess.huff -r`.

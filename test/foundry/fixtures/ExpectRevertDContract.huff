@@ -1,3 +1,4 @@
+// Ported from Foundry's testdata (Foundry v1.8.6, MIT OR Apache-2.0)
 // Huff version of the `DContract` contract in Foundry's testdata/default/cheats/ExpectRevert.t.sol: its
 // constructor reverts with Error("Reverted by DContract").
 // Creation bytecode for ExpectRevert.t.huff and ExpectRevertCContract.huff:

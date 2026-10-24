@@ -1,3 +1,4 @@
+// Ported from Foundry's testdata (Foundry v1.8.6, MIT OR Apache-2.0)
 // Foundry's `Mock` (MockCall.t.sol) and `Contract` (ExpectCall.t.sol) helper contracts.
 // Runtime bytecode: hnc MockCallTarget.huff -r
 

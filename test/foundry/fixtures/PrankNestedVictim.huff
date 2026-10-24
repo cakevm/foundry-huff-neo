@@ -1,3 +1,4 @@
+// Ported from Foundry's testdata (Foundry v1.8.6, MIT OR Apache-2.0)
 // Foundry's `NestedVictim` helper contract from Prank.t.sol, calling the PrankVictim.huff contract
 // at 0x1000. Returns its own msg.sender and tx.origin, then those the inner victim saw.
 // Runtime bytecode: hnc PrankNestedVictim.huff -r

@@ -1,14 +1,16 @@
-import os.path
 import re
+from collections import Counter
+from pathlib import Path
 
-PATH = os.path.dirname(os.path.abspath(__file__))
+ROOT = Path(__file__).parent.parent
 
 # Cheatcodes of these sections only work in scripts
 SKIPPED_SECTIONS = {"Scripting"}
 
 # The overload that keeps the plain name of an overloaded cheatcode, the one Solidity tests use most.
-# Other overloads get their parameter types as a suffix, so a new overload in forge-std never changes
-# what a plain name means.
+# Other overloads get their parameter types as a suffix. A plain name listed here never changes its
+# meaning; any other plain name disappears, a compile error, when forge-std adds an overload to it.
+# The templates below are filled with `str.replace`, as Huff's braces would clash with `str.format`.
 DEFAULT_OVERLOADS = {
     "prank": "prank(address)",
     "startPrank": "startPrank(address)",
@@ -82,7 +84,9 @@ template_variable = """
 
 STATIC_TYPE = re.compile(r"^(u?int\d*|address|bool|bytes([1-9]|[12]\d|3[0-2]))$")
 ELEMENTARY_TYPE = re.compile(r"^(u?int\d*|address|bool|bytes\d*|string)(\[\d*\])*$")
-SHORT_BYTES = re.compile(r"^bytes([1-9]|[12]\d|3[01])$")
+# Up to 16 bytes, a right-aligned value is always smaller than any nonzero left-aligned one
+SHORT_BYTES = re.compile(r"^bytes([1-9]|1[0-6])$")
+LONG_SHORT_BYTES = re.compile(r"^bytes(1[7-9]|2\d|3[01])$")
 
 
 def canonical(solidity_type):
@@ -155,7 +159,8 @@ def macro_names(cheatcodes):
         plain = len(overloads[name]) == 1 or DEFAULT_OVERLOADS.get(name) == signature
         names.append("VM_" + snake_case(name) + ("" if plain else "_" + type_suffix(inputs)))
     # A suffixed name can match another cheatcode's plain name; a default overload then resolves it
-    assert len(names) == len(set(names)), "macro names must be unique"
+    duplicates = [name for name, count in Counter(names).items() if count > 1]
+    assert not duplicates, f"macro names must be unique: {duplicates}"
     return names
 
 
@@ -165,9 +170,12 @@ def normalize_bytes_arguments(inputs):
     argument has its own head word in the ABI encoding too, at the same position from the top."""
     lines = []
     for position, solidity_type in enumerate(inputs):
+        assert not LONG_SHORT_BYTES.match(solidity_type), f"cannot tell the alignment of a {solidity_type} argument"
         short = SHORT_BYTES.match(solidity_type)
         if not short:
             continue
+        # A fixed-size array would take several head words, moving the argument
+        assert not any("[" in t and not t.endswith("[]") for t in inputs[:position]), "an argument must be one head word"
         bits = 8 * int(short.group(1))
         shift = f"dup1 0x{1 << bits:x} gt 0x{256 - bits:x} mul shl"
         code = shift if position == 0 else f"swap{position} {shift} swap{position}"
@@ -176,8 +184,7 @@ def normalize_bytes_arguments(inputs):
 
 
 def main():
-    with open(os.path.join(PATH, "../lib/forge-std/src/Vm.sol"), "r") as file:
-        source = file.read()
+    source = (ROOT / "lib/forge-std/src/Vm.sol").read_text()
 
     cheatcodes = list(parse_cheatcodes(source))
 
@@ -230,8 +237,7 @@ def main():
             + "\n\n"
         )
 
-    with open(os.path.join(PATH, "../src/vm.huff"), "w") as file:
-        file.write(output.rstrip() + "\n")
+    (ROOT / "src/vm.huff").write_text(output.rstrip() + "\n")
 
 
 if __name__ == "__main__":

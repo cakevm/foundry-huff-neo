@@ -10,7 +10,7 @@
 /// the words as calldata and the value in wei, and pushes the success flag. The selector may be
 /// pushed as `__FUNC_SIG` or as `__ERROR` pushes it. `LAST_RETURN_WORD` reads the return data.
 #define macro CALL_FUNCTION_WITH_VALUE(words) = takes(0) returns(1) {
-    WRITE_CALL(<words>)                // [inSize, memory]
+    _WRITE_CALL(<words>)                // [inSize, memory]
     0x00 0x00 swap2                    // [inSize, retOffset, retSize, memory]
     dup4 0x40 add                      // [inOffset, inSize, retOffset, retSize, memory]
     dup5 0x20 add mload                // [value, ...]
@@ -30,7 +30,7 @@
 /// and pushes the first word it returns. A failed call reverts with its error.
 #define macro STATICCALL_FUNCTION(words) = takes(0) returns(1) {
     0x00 swap1                         // [address, value, selector, word_1, ...]
-    WRITE_CALL(<words>)                // [inSize, memory]
+    _WRITE_CALL(<words>)                // [inSize, memory]
     // Returns into the zero value slot, so a shorter return is padded with zeros
     0x20 dup3 0x20 add dup3            // [inSize, memory + 32, 0x20, inSize, memory]
     dup5 0x40 add                      // [inOffset, inSize, retOffset, retSize, inSize, memory]
@@ -53,8 +53,7 @@
 /// Pushes the first word the last call returned, padded with zeros when it returned less. Read it
 /// before the next call, which includes an assertion, as that replaces the return data.
 #define macro LAST_RETURN_WORD() = takes(0) returns(1) {
-    msize                              // [pointer]
-    0x00 dup2 mstore                   // zero the word, as the return data may be shorter
+    msize                              // [pointer], to a word that is still zero
     returndatasize 0x20                // [32, returned, pointer]
     dup2 dup2 lt                       // [32 < returned, 32, returned, pointer]
     swap2 dup1 swap2 sub               // [32 - returned, returned, 32 < returned, pointer]
@@ -82,13 +81,9 @@
 /// that way. The error may be pushed as `__ERROR` or `__FUNC_SIG` pushes it.
 #define macro EXPECT_REVERT_CALL(words) = takes(0) returns(0) {
     dup1 0x0100000000 gt 0xe0 mul shl  // left-align an error pushed by __FUNC_SIG
-    __FUNC_SIG("expectRevert(bytes4)") 0x00 [VM_ADDRESS]
-    CALL_FUNCTION_WITH_VALUE(0x01) REQUIRE_SUCCESS()
-    CALL_FUNCTION(<words>)             // [success]
-    // assertTrue(success, "call did not revert as expected")
-    __RIGHTPAD(__BYTES("call did not revert as expected")) swap1
-    0x1f swap1 0x40 swap1              // [success, 0x40, length, message]
-    __FUNC_SIG("assertTrue(bool,string)") CALL_CHEATCODE(0x04)
+    __FUNC_SIG("expectRevert(bytes4)") _CALL_CHEATCODE(0x01)
+    // A call that does not revert that way fails with Foundry's reason, which fails the test
+    CALL_FUNCTION(<words>) REQUIRE_SUCCESS()
 }
 
 /// Consumes [success, length, chunk_1, ..., chunk_n] and fails the test unless the last call failed
@@ -120,84 +115,84 @@
 
 /// Consumes [left, right] and fails the test unless the two words are equal
 #define macro ASSERT_EQ() = takes(2) returns(0) {
-    __FUNC_SIG("assertEq(uint256,uint256)") CALL_CHEATCODE(0x02)
+    __FUNC_SIG("assertEq(uint256,uint256)") _CALL_CHEATCODE(0x02)
 }
 
 /// Consumes [left, right] and fails the test if the two words are equal
 #define macro ASSERT_NOT_EQ() = takes(2) returns(0) {
-    __FUNC_SIG("assertNotEq(uint256,uint256)") CALL_CHEATCODE(0x02)
+    __FUNC_SIG("assertNotEq(uint256,uint256)") _CALL_CHEATCODE(0x02)
 }
 
 /// Consumes [left, right] and fails the test unless the two addresses are equal
 #define macro ASSERT_EQ_ADDRESS() = takes(2) returns(0) {
-    __FUNC_SIG("assertEq(address,address)") CALL_CHEATCODE(0x02)
+    __FUNC_SIG("assertEq(address,address)") _CALL_CHEATCODE(0x02)
 }
 
 /// Consumes [left, right] and fails the test unless the two bytes32 values are equal
 #define macro ASSERT_EQ_BYTES32() = takes(2) returns(0) {
-    __FUNC_SIG("assertEq(bytes32,bytes32)") CALL_CHEATCODE(0x02)
+    __FUNC_SIG("assertEq(bytes32,bytes32)") _CALL_CHEATCODE(0x02)
 }
 
 /// Consumes [left, right] and fails the test unless the two int256 values are equal
 #define macro ASSERT_EQ_INT() = takes(2) returns(0) {
-    __FUNC_SIG("assertEq(int256,int256)") CALL_CHEATCODE(0x02)
+    __FUNC_SIG("assertEq(int256,int256)") _CALL_CHEATCODE(0x02)
 }
 
 /// Consumes [left, right] and fails the test unless left < right, like `lt`
 #define macro ASSERT_LT() = takes(2) returns(0) {
-    __FUNC_SIG("assertLt(uint256,uint256)") CALL_CHEATCODE(0x02)
+    __FUNC_SIG("assertLt(uint256,uint256)") _CALL_CHEATCODE(0x02)
 }
 
 /// Consumes [left, right] and fails the test unless left <= right
 #define macro ASSERT_LE() = takes(2) returns(0) {
-    __FUNC_SIG("assertLe(uint256,uint256)") CALL_CHEATCODE(0x02)
+    __FUNC_SIG("assertLe(uint256,uint256)") _CALL_CHEATCODE(0x02)
 }
 
 /// Consumes [left, right] and fails the test unless left > right, like `gt`
 #define macro ASSERT_GT() = takes(2) returns(0) {
-    __FUNC_SIG("assertGt(uint256,uint256)") CALL_CHEATCODE(0x02)
+    __FUNC_SIG("assertGt(uint256,uint256)") _CALL_CHEATCODE(0x02)
 }
 
 /// Consumes [left, right] and fails the test unless left >= right
 #define macro ASSERT_GE() = takes(2) returns(0) {
-    __FUNC_SIG("assertGe(uint256,uint256)") CALL_CHEATCODE(0x02)
+    __FUNC_SIG("assertGe(uint256,uint256)") _CALL_CHEATCODE(0x02)
 }
 
 /// Consumes [left, right] and fails the test unless left < right as signed values, like `slt`
 #define macro ASSERT_LT_INT() = takes(2) returns(0) {
-    __FUNC_SIG("assertLt(int256,int256)") CALL_CHEATCODE(0x02)
+    __FUNC_SIG("assertLt(int256,int256)") _CALL_CHEATCODE(0x02)
 }
 
 /// Consumes [left, right] and fails the test unless left <= right as signed values
 #define macro ASSERT_LE_INT() = takes(2) returns(0) {
-    __FUNC_SIG("assertLe(int256,int256)") CALL_CHEATCODE(0x02)
+    __FUNC_SIG("assertLe(int256,int256)") _CALL_CHEATCODE(0x02)
 }
 
 /// Consumes [left, right] and fails the test unless left > right as signed values, like `sgt`
 #define macro ASSERT_GT_INT() = takes(2) returns(0) {
-    __FUNC_SIG("assertGt(int256,int256)") CALL_CHEATCODE(0x02)
+    __FUNC_SIG("assertGt(int256,int256)") _CALL_CHEATCODE(0x02)
 }
 
 /// Consumes [left, right] and fails the test unless left >= right as signed values
 #define macro ASSERT_GE_INT() = takes(2) returns(0) {
-    __FUNC_SIG("assertGe(int256,int256)") CALL_CHEATCODE(0x02)
+    __FUNC_SIG("assertGe(int256,int256)") _CALL_CHEATCODE(0x02)
 }
 
 /// Consumes [condition] and fails the test unless it is true
 #define macro ASSERT_TRUE() = takes(1) returns(0) {
-    __FUNC_SIG("assertTrue(bool)") CALL_CHEATCODE(0x01)
+    __FUNC_SIG("assertTrue(bool)") _CALL_CHEATCODE(0x01)
 }
 
 /// Consumes [condition] and fails the test unless it is false
 #define macro ASSERT_FALSE() = takes(1) returns(0) {
-    __FUNC_SIG("assertFalse(bool)") CALL_CHEATCODE(0x01)
+    __FUNC_SIG("assertFalse(bool)") _CALL_CHEATCODE(0x01)
 }
 
 /* ── Internals ── */
 
 /// Consumes [selector, word_1, ..., word_n] and calls the cheatcode in free memory. A failed
 /// cheatcode, such as a failed assertion, reverts with its error.
-#define macro CALL_CHEATCODE(words) = takes(0) returns(0) {
+#define macro _CALL_CHEATCODE(words) = takes(0) returns(0) {
     0x00 [VM_ADDRESS]                  // [address, value, selector, word_1, ...]
     CALL_FUNCTION_WITH_VALUE(<words>)
     REQUIRE_SUCCESS()
@@ -205,7 +200,7 @@
 
 /// Consumes [address, value, selector, word_1, ..., word_n] and writes them to free memory: the
 /// address, the value, then the calldata. Pushes the calldata size and where the address is.
-#define macro WRITE_CALL(words) = takes(0) returns(2) {
+#define macro _WRITE_CALL(words) = takes(0) returns(2) {
     msize                              // [memory, address, value, selector, word_1, ...]
     swap1 dup2 mstore                  // [memory, value, selector, word_1, ...]
     swap1 dup2 0x20 add mstore         // [memory, selector, word_1, ...]
