@@ -1,0 +1,26 @@
+// Ported from Foundry's testdata (Foundry v1.8.6, MIT OR Apache-2.0)
+// Foundry's `ImplementationTest` helper contract from Prank.t.sol, for delegatecalls.
+// Runtime bytecode: hnc PrankImplementation.huff -r
+
+#define function assertCorrectCaller(address) nonpayable returns ()
+#define function assertCorrectOrigin(address) nonpayable returns ()
+#define function setNum(uint256) nonpayable returns ()
+
+#define macro MAIN() = takes(0) returns(0) {
+    0x00 calldataload 0xe0 shr
+    dup1 __FUNC_SIG(assertCorrectCaller) eq assert_correct_caller jumpi
+    dup1 __FUNC_SIG(assertCorrectOrigin) eq assert_correct_origin jumpi
+    dup1 __FUNC_SIG(setNum) eq set_num jumpi
+    0x00 0x00 revert
+
+    assert_correct_caller:
+        0x04 calldataload caller eq ok jumpi
+        0x00 0x00 revert
+    assert_correct_origin:
+        0x04 calldataload origin eq ok jumpi
+        0x00 0x00 revert
+    set_num:
+        0x04 calldataload 0x00 sstore
+    ok:
+        stop
+}

@@ -1,0 +1,615 @@
+// Ported from Foundry's testdata/default/cheats/Assert.t.sol (Foundry v1.8.6, MIT OR Apache-2.0)
+// Skipped: testAssertEqNotEqArrays, to keep to the core assertions. The fuzz tests run with the fixed
+// inputs noted above each test. `vm._expectCheatcodeRevert(message)` becomes a direct call to the
+// cheatcode followed by EXPECT_CHEATCODE_ERROR, which checks that the call failed with that message.
+// src/vm.huff has no macro for `assertApproxEqRelDecimal`, so it is only called with CALL_FUNCTION.
+
+#include "../../src/test.huff"
+
+// left = 12345, right = 67890, decimals = 4
+#define test FUZZ_ASSERT_EQ_NOT_EQ_UINT256() = {
+    // vm.assertEq(12345, 12345)
+    0x3039 0x3039 VM_ASSERT_EQ_UINT256_UINT256(0x00)
+
+    // vm.assertEq(67890, 67890)
+    0x010932 0x010932 VM_ASSERT_EQ_UINT256_UINT256(0x00)
+
+    // vm.assertNotEq(12345, 67890)
+    0x010932 0x3039 VM_ASSERT_NOT_EQ_UINT256_UINT256(0x00)
+
+    // vm.assertNotEq(67890, 12345)
+    0x3039 0x010932 VM_ASSERT_NOT_EQ_UINT256_UINT256(0x00)
+
+    // vm.assertEq(12345, 67890, errorMessage)
+    //   reverts with "User provided message: 12345 != 67890"
+    __RIGHTPAD(__BYTES("67890")) __RIGHTPAD(__BYTES("User provided message: 12345 != ")) 0x25
+    __RIGHTPAD(__BYTES("User provided message")) 0x15 0x60 0x010932 0x3039
+    __FUNC_SIG("assertEq(uint256,uint256,string)") [VM_ADDRESS] CALL_FUNCTION(0x05)
+    EXPECT_CHEATCODE_ERROR(0x02)
+
+    // vm.assertNotEq(12345, 12345, errorMessage)
+    //   reverts with "User provided message: 12345 == 12345"
+    __RIGHTPAD(__BYTES("12345")) __RIGHTPAD(__BYTES("User provided message: 12345 == ")) 0x25
+    __RIGHTPAD(__BYTES("User provided message")) 0x15 0x60 0x3039 0x3039
+    __FUNC_SIG("assertNotEq(uint256,uint256,string)") [VM_ADDRESS] CALL_FUNCTION(0x05)
+    EXPECT_CHEATCODE_ERROR(0x02)
+
+    // vm.assertEqDecimal(12345, 67890, 4)
+    //   reverts with "assertion failed: 1.2345 != 6.7890"
+    __RIGHTPAD(__BYTES("90")) __RIGHTPAD(__BYTES("assertion failed: 1.2345 != 6.78")) 0x22
+    0x04 0x010932 0x3039
+    __FUNC_SIG("assertEqDecimal(uint256,uint256,uint256)") [VM_ADDRESS] CALL_FUNCTION(0x03)
+    EXPECT_CHEATCODE_ERROR(0x02)
+
+    // vm.assertNotEqDecimal(12345, 12345, 4)
+    //   reverts with "assertion failed: 1.2345 == 1.2345"
+    __RIGHTPAD(__BYTES("45")) __RIGHTPAD(__BYTES("assertion failed: 1.2345 == 1.23")) 0x22
+    0x04 0x3039 0x3039
+    __FUNC_SIG("assertNotEqDecimal(uint256,uint256,uint256)") [VM_ADDRESS] CALL_FUNCTION(0x03)
+    EXPECT_CHEATCODE_ERROR(0x02)
+}
+
+// left = -12345, right = 67890, decimals = 4
+#define test FUZZ_ASSERT_EQ_NOT_EQ_INT256() = {
+    // vm.assertEq(-12345, -12345)
+    0x3039 0x00 sub 0x3039 0x00 sub VM_ASSERT_EQ_INT256_INT256(0x00)
+
+    // vm.assertEq(67890, 67890)
+    0x010932 0x010932 VM_ASSERT_EQ_INT256_INT256(0x00)
+
+    // vm.assertNotEq(-12345, 67890)
+    0x010932 0x3039 0x00 sub VM_ASSERT_NOT_EQ_INT256_INT256(0x00)
+
+    // vm.assertNotEq(67890, -12345)
+    0x3039 0x00 sub 0x010932 VM_ASSERT_NOT_EQ_INT256_INT256(0x00)
+
+    // vm.assertEq(-12345, 67890, errorMessage)
+    //   reverts with "User provided message: -12345 != 67890"
+    __RIGHTPAD(__BYTES(" 67890")) __RIGHTPAD(__BYTES("User provided message: -12345 !=")) 0x26
+    __RIGHTPAD(__BYTES("User provided message")) 0x15 0x60 0x010932 0x3039 0x00 sub
+    __FUNC_SIG("assertEq(int256,int256,string)") [VM_ADDRESS] CALL_FUNCTION(0x05)
+    EXPECT_CHEATCODE_ERROR(0x02)
+
+    // vm.assertNotEq(-12345, -12345, errorMessage)
+    //   reverts with "User provided message: -12345 == -12345"
+    __RIGHTPAD(__BYTES(" -12345")) __RIGHTPAD(__BYTES("User provided message: -12345 ==")) 0x27
+    __RIGHTPAD(__BYTES("User provided message")) 0x15 0x60 0x3039 0x00 sub 0x3039 0x00 sub
+    __FUNC_SIG("assertNotEq(int256,int256,string)") [VM_ADDRESS] CALL_FUNCTION(0x05)
+    EXPECT_CHEATCODE_ERROR(0x02)
+
+    // vm.assertEqDecimal(-12345, 67890, 4, errorMessage)
+    //   reverts with "User provided message: -1.2345 != 6.7890"
+    __RIGHTPAD(__BYTES("= 6.7890")) __RIGHTPAD(__BYTES("User provided message: -1.2345 !")) 0x28
+    __RIGHTPAD(__BYTES("User provided message")) 0x15 0x80 0x04 0x010932 0x3039 0x00 sub
+    __FUNC_SIG("assertEqDecimal(int256,int256,uint256,string)") [VM_ADDRESS] CALL_FUNCTION(0x06)
+    EXPECT_CHEATCODE_ERROR(0x02)
+
+    // vm.assertNotEqDecimal(-12345, -12345, 4, errorMessage)
+    //   reverts with "User provided message: -1.2345 == -1.2345"
+    __RIGHTPAD(__BYTES("= -1.2345")) __RIGHTPAD(__BYTES("User provided message: -1.2345 =")) 0x29
+    __RIGHTPAD(__BYTES("User provided message")) 0x15 0x80 0x04 0x3039 0x00 sub 0x3039 0x00 sub
+    __FUNC_SIG("assertNotEqDecimal(int256,int256,uint256,string)") [VM_ADDRESS] CALL_FUNCTION(0x06)
+    EXPECT_CHEATCODE_ERROR(0x02)
+}
+
+// left = true, right = false
+#define test FUZZ_ASSERT_EQ_NOT_EQ_BOOL() = {
+    // vm.assertEq(true, true)
+    0x01 0x01 VM_ASSERT_EQ_BOOL_BOOL(0x00)
+
+    // vm.assertEq(false, false)
+    0x00 0x00 VM_ASSERT_EQ_BOOL_BOOL(0x00)
+
+    // vm.assertNotEq(true, false)
+    0x00 0x01 VM_ASSERT_NOT_EQ_BOOL_BOOL(0x00)
+
+    // vm.assertNotEq(false, true)
+    0x01 0x00 VM_ASSERT_NOT_EQ_BOOL_BOOL(0x00)
+
+    // vm.assertEq(true, false, errorMessage)
+    //   reverts with "User provided message: true != false"
+    __RIGHTPAD(__BYTES("alse")) __RIGHTPAD(__BYTES("User provided message: true != f")) 0x24
+    __RIGHTPAD(__BYTES("User provided message")) 0x15 0x60 0x00 0x01
+    __FUNC_SIG("assertEq(bool,bool,string)") [VM_ADDRESS] CALL_FUNCTION(0x05)
+    EXPECT_CHEATCODE_ERROR(0x02)
+
+    // vm.assertNotEq(true, true, errorMessage)
+    //   reverts with "User provided message: true == true"
+    __RIGHTPAD(__BYTES("rue")) __RIGHTPAD(__BYTES("User provided message: true == t")) 0x23
+    __RIGHTPAD(__BYTES("User provided message")) 0x15 0x60 0x01 0x01
+    __FUNC_SIG("assertNotEq(bool,bool,string)") [VM_ADDRESS] CALL_FUNCTION(0x05)
+    EXPECT_CHEATCODE_ERROR(0x02)
+}
+
+// left = 0xbeef, right = 0xcafe
+#define test FUZZ_ASSERT_EQ_NOT_EQ_ADDRESS() = {
+    // vm.assertEq(48879, 48879)
+    0xbeef 0xbeef VM_ASSERT_EQ_ADDRESS_ADDRESS(0x00)
+
+    // vm.assertEq(51966, 51966)
+    0xcafe 0xcafe VM_ASSERT_EQ_ADDRESS_ADDRESS(0x00)
+
+    // vm.assertNotEq(48879, 51966)
+    0xcafe 0xbeef VM_ASSERT_NOT_EQ_ADDRESS_ADDRESS(0x00)
+
+    // vm.assertNotEq(51966, 48879)
+    0xbeef 0xcafe VM_ASSERT_NOT_EQ_ADDRESS_ADDRESS(0x00)
+
+    // vm.assertEq(48879, 51966, errorMessage)
+    //   reverts with "User provided message: 0x000000000000000000000000000000000000bEEF != 0x000000000000000000000000000000000000cafE"
+    __RIGHTPAD(__BYTES("00000000000cafE")) __RIGHTPAD(__BYTES("F != 0x0000000000000000000000000")) __RIGHTPAD(__BYTES("00000000000000000000000000000bEE")) __RIGHTPAD(__BYTES("User provided message: 0x0000000")) 0x6f
+    __RIGHTPAD(__BYTES("User provided message")) 0x15 0x60 0xcafe 0xbeef
+    __FUNC_SIG("assertEq(address,address,string)") [VM_ADDRESS] CALL_FUNCTION(0x05)
+    EXPECT_CHEATCODE_ERROR(0x04)
+
+    // vm.assertNotEq(48879, 48879, errorMessage)
+    //   reverts with "User provided message: 0x000000000000000000000000000000000000bEEF == 0x000000000000000000000000000000000000bEEF"
+    __RIGHTPAD(__BYTES("00000000000bEEF")) __RIGHTPAD(__BYTES("F == 0x0000000000000000000000000")) __RIGHTPAD(__BYTES("00000000000000000000000000000bEE")) __RIGHTPAD(__BYTES("User provided message: 0x0000000")) 0x6f
+    __RIGHTPAD(__BYTES("User provided message")) 0x15 0x60 0xbeef 0xbeef
+    __FUNC_SIG("assertNotEq(address,address,string)") [VM_ADDRESS] CALL_FUNCTION(0x05)
+    EXPECT_CHEATCODE_ERROR(0x04)
+}
+
+// left = 0x01, right = 0x02
+#define test FUZZ_ASSERT_EQ_NOT_EQ_BYTES32() = {
+    // vm.assertEq(1, 1)
+    0x01 0x01 VM_ASSERT_EQ_BYTES32_BYTES32(0x00)
+
+    // vm.assertEq(2, 2)
+    0x02 0x02 VM_ASSERT_EQ_BYTES32_BYTES32(0x00)
+
+    // vm.assertNotEq(1, 2)
+    0x02 0x01 VM_ASSERT_NOT_EQ_BYTES32_BYTES32(0x00)
+
+    // vm.assertNotEq(2, 1)
+    0x01 0x02 VM_ASSERT_NOT_EQ_BYTES32_BYTES32(0x00)
+
+    // vm.assertEq(1, 2, errorMessage)
+    //   reverts with "User provided message: 0x0000000000000000000000000000000000000000000000000000000000000001 != 0x0000000000000000000000000000000000000000000000000000000000000002"
+    __RIGHTPAD(__BYTES("0000000000000000000000000000002")) __RIGHTPAD(__BYTES("00000000000000000000000000000000")) __RIGHTPAD(__BYTES("0000000000000000000000001 != 0x0")) __RIGHTPAD(__BYTES("00000000000000000000000000000000")) __RIGHTPAD(__BYTES("User provided message: 0x0000000")) 0x9f
+    __RIGHTPAD(__BYTES("User provided message")) 0x15 0x60 0x02 0x01
+    __FUNC_SIG("assertEq(bytes32,bytes32,string)") [VM_ADDRESS] CALL_FUNCTION(0x05)
+    EXPECT_CHEATCODE_ERROR(0x05)
+
+    // vm.assertNotEq(1, 1, errorMessage)
+    //   reverts with "User provided message: 0x0000000000000000000000000000000000000000000000000000000000000001 == 0x0000000000000000000000000000000000000000000000000000000000000001"
+    __RIGHTPAD(__BYTES("0000000000000000000000000000001")) __RIGHTPAD(__BYTES("00000000000000000000000000000000")) __RIGHTPAD(__BYTES("0000000000000000000000001 == 0x0")) __RIGHTPAD(__BYTES("00000000000000000000000000000000")) __RIGHTPAD(__BYTES("User provided message: 0x0000000")) 0x9f
+    __RIGHTPAD(__BYTES("User provided message")) 0x15 0x60 0x01 0x01
+    __FUNC_SIG("assertNotEq(bytes32,bytes32,string)") [VM_ADDRESS] CALL_FUNCTION(0x05)
+    EXPECT_CHEATCODE_ERROR(0x05)
+}
+
+// left = foo, right = bar
+#define test FUZZ_ASSERT_EQ_NOT_EQ_STRING() = {
+    // vm.assertEq('foo', 'foo')
+    __RIGHTPAD(__BYTES("foo")) 0x03 __RIGHTPAD(__BYTES("foo")) 0x03 0x80 0x40 VM_ASSERT_EQ_STRING_STRING(0x06, 0x00)
+
+    // vm.assertEq('bar', 'bar')
+    __RIGHTPAD(__BYTES("bar")) 0x03 __RIGHTPAD(__BYTES("bar")) 0x03 0x80 0x40 VM_ASSERT_EQ_STRING_STRING(0x06, 0x00)
+
+    // vm.assertNotEq('foo', 'bar')
+    __RIGHTPAD(__BYTES("bar")) 0x03 __RIGHTPAD(__BYTES("foo")) 0x03 0x80 0x40 VM_ASSERT_NOT_EQ_STRING_STRING(0x06, 0x00)
+
+    // vm.assertNotEq('bar', 'foo')
+    __RIGHTPAD(__BYTES("foo")) 0x03 __RIGHTPAD(__BYTES("bar")) 0x03 0x80 0x40 VM_ASSERT_NOT_EQ_STRING_STRING(0x06, 0x00)
+
+    // vm.assertEq('foo', 'bar', errorMessage)
+    //   reverts with "User provided message: foo != bar"
+    __RIGHTPAD(__BYTES("r")) __RIGHTPAD(__BYTES("User provided message: foo != ba")) 0x21
+    __RIGHTPAD(__BYTES("User provided message")) 0x15 __RIGHTPAD(__BYTES("bar")) 0x03 __RIGHTPAD(__BYTES("foo")) 0x03 0xe0 0xa0 0x60
+    __FUNC_SIG("assertEq(string,string,string)") [VM_ADDRESS] CALL_FUNCTION(0x09)
+    EXPECT_CHEATCODE_ERROR(0x02)
+
+    // vm.assertNotEq('foo', 'foo', errorMessage)
+    //   reverts with "User provided message: foo == foo"
+    __RIGHTPAD(__BYTES("o")) __RIGHTPAD(__BYTES("User provided message: foo == fo")) 0x21
+    __RIGHTPAD(__BYTES("User provided message")) 0x15 __RIGHTPAD(__BYTES("foo")) 0x03 __RIGHTPAD(__BYTES("foo")) 0x03 0xe0 0xa0 0x60
+    __FUNC_SIG("assertNotEq(string,string,string)") [VM_ADDRESS] CALL_FUNCTION(0x09)
+    EXPECT_CHEATCODE_ERROR(0x02)
+}
+
+// left = 0x1111, right = 0x1234
+#define test FUZZ_ASSERT_EQ_NOT_EQ_BYTES() = {
+    // vm.assertEq(b'\x11\x11', b'\x11\x11')
+    __RIGHTPAD(0x1111) 0x02 __RIGHTPAD(0x1111) 0x02 0x80 0x40 VM_ASSERT_EQ_BYTES_BYTES(0x06, 0x00)
+
+    // vm.assertEq(b'\x124', b'\x124')
+    __RIGHTPAD(0x1234) 0x02 __RIGHTPAD(0x1234) 0x02 0x80 0x40 VM_ASSERT_EQ_BYTES_BYTES(0x06, 0x00)
+
+    // vm.assertNotEq(b'\x11\x11', b'\x124')
+    __RIGHTPAD(0x1234) 0x02 __RIGHTPAD(0x1111) 0x02 0x80 0x40 VM_ASSERT_NOT_EQ_BYTES_BYTES(0x06, 0x00)
+
+    // vm.assertNotEq(b'\x124', b'\x11\x11')
+    __RIGHTPAD(0x1111) 0x02 __RIGHTPAD(0x1234) 0x02 0x80 0x40 VM_ASSERT_NOT_EQ_BYTES_BYTES(0x06, 0x00)
+
+    // vm.assertEq(b'\x11\x11', b'\x124', errorMessage)
+    //   reverts with "User provided message: 0x1111 != 0x1234"
+    __RIGHTPAD(__BYTES(" 0x1234")) __RIGHTPAD(__BYTES("User provided message: 0x1111 !=")) 0x27
+    __RIGHTPAD(__BYTES("User provided message")) 0x15 __RIGHTPAD(0x1234) 0x02 __RIGHTPAD(0x1111) 0x02 0xe0 0xa0 0x60
+    __FUNC_SIG("assertEq(bytes,bytes,string)") [VM_ADDRESS] CALL_FUNCTION(0x09)
+    EXPECT_CHEATCODE_ERROR(0x02)
+
+    // vm.assertNotEq(b'\x11\x11', b'\x11\x11', errorMessage)
+    //   reverts with "User provided message: 0x1111 == 0x1111"
+    __RIGHTPAD(__BYTES(" 0x1111")) __RIGHTPAD(__BYTES("User provided message: 0x1111 ==")) 0x27
+    __RIGHTPAD(__BYTES("User provided message")) 0x15 __RIGHTPAD(0x1111) 0x02 __RIGHTPAD(0x1111) 0x02 0xe0 0xa0 0x60
+    __FUNC_SIG("assertNotEq(bytes,bytes,string)") [VM_ADDRESS] CALL_FUNCTION(0x09)
+    EXPECT_CHEATCODE_ERROR(0x02)
+}
+
+// left = 12345, right = 67890, decimals = 4
+#define test FUZZ_ASSERT_GT_LT_UINT256() = {
+    // vm.assertGt(67890, 12345)
+    0x3039 0x010932 VM_ASSERT_GT_UINT256_UINT256(0x00)
+
+    // vm.assertLt(12345, 67890)
+    0x010932 0x3039 VM_ASSERT_LT_UINT256_UINT256(0x00)
+
+    // vm.assertGt(12345, 67890, errorMessage)
+    //   reverts with "User provided message: 12345 <= 67890"
+    __RIGHTPAD(__BYTES("67890")) __RIGHTPAD(__BYTES("User provided message: 12345 <= ")) 0x25
+    __RIGHTPAD(__BYTES("User provided message")) 0x15 0x60 0x010932 0x3039
+    __FUNC_SIG("assertGt(uint256,uint256,string)") [VM_ADDRESS] CALL_FUNCTION(0x05)
+    EXPECT_CHEATCODE_ERROR(0x02)
+
+    // vm.assertGt(67890, 67890, errorMessage)
+    //   reverts with "User provided message: 67890 <= 67890"
+    __RIGHTPAD(__BYTES("67890")) __RIGHTPAD(__BYTES("User provided message: 67890 <= ")) 0x25
+    __RIGHTPAD(__BYTES("User provided message")) 0x15 0x60 0x010932 0x010932
+    __FUNC_SIG("assertGt(uint256,uint256,string)") [VM_ADDRESS] CALL_FUNCTION(0x05)
+    EXPECT_CHEATCODE_ERROR(0x02)
+
+    // vm.assertLt(12345, 12345, errorMessage)
+    //   reverts with "User provided message: 12345 >= 12345"
+    __RIGHTPAD(__BYTES("12345")) __RIGHTPAD(__BYTES("User provided message: 12345 >= ")) 0x25
+    __RIGHTPAD(__BYTES("User provided message")) 0x15 0x60 0x3039 0x3039
+    __FUNC_SIG("assertLt(uint256,uint256,string)") [VM_ADDRESS] CALL_FUNCTION(0x05)
+    EXPECT_CHEATCODE_ERROR(0x02)
+
+    // vm.assertLt(67890, 12345, errorMessage)
+    //   reverts with "User provided message: 67890 >= 12345"
+    __RIGHTPAD(__BYTES("12345")) __RIGHTPAD(__BYTES("User provided message: 67890 >= ")) 0x25
+    __RIGHTPAD(__BYTES("User provided message")) 0x15 0x60 0x3039 0x010932
+    __FUNC_SIG("assertLt(uint256,uint256,string)") [VM_ADDRESS] CALL_FUNCTION(0x05)
+    EXPECT_CHEATCODE_ERROR(0x02)
+
+    // vm.assertGtDecimal(12345, 67890, 4)
+    //   reverts with "assertion failed: 1.2345 <= 6.7890"
+    __RIGHTPAD(__BYTES("90")) __RIGHTPAD(__BYTES("assertion failed: 1.2345 <= 6.78")) 0x22
+    0x04 0x010932 0x3039
+    __FUNC_SIG("assertGtDecimal(uint256,uint256,uint256)") [VM_ADDRESS] CALL_FUNCTION(0x03)
+    EXPECT_CHEATCODE_ERROR(0x02)
+
+    // vm.assertGtDecimal(67890, 67890, 4)
+    //   reverts with "assertion failed: 6.7890 <= 6.7890"
+    __RIGHTPAD(__BYTES("90")) __RIGHTPAD(__BYTES("assertion failed: 6.7890 <= 6.78")) 0x22
+    0x04 0x010932 0x010932
+    __FUNC_SIG("assertGtDecimal(uint256,uint256,uint256)") [VM_ADDRESS] CALL_FUNCTION(0x03)
+    EXPECT_CHEATCODE_ERROR(0x02)
+
+    // vm.assertLtDecimal(12345, 12345, 4)
+    //   reverts with "assertion failed: 1.2345 >= 1.2345"
+    __RIGHTPAD(__BYTES("45")) __RIGHTPAD(__BYTES("assertion failed: 1.2345 >= 1.23")) 0x22
+    0x04 0x3039 0x3039
+    __FUNC_SIG("assertLtDecimal(uint256,uint256,uint256)") [VM_ADDRESS] CALL_FUNCTION(0x03)
+    EXPECT_CHEATCODE_ERROR(0x02)
+
+    // vm.assertLtDecimal(67890, 12345, 4)
+    //   reverts with "assertion failed: 6.7890 >= 1.2345"
+    __RIGHTPAD(__BYTES("45")) __RIGHTPAD(__BYTES("assertion failed: 6.7890 >= 1.23")) 0x22
+    0x04 0x3039 0x010932
+    __FUNC_SIG("assertLtDecimal(uint256,uint256,uint256)") [VM_ADDRESS] CALL_FUNCTION(0x03)
+    EXPECT_CHEATCODE_ERROR(0x02)
+}
+
+// left = -12345, right = 67890, decimals = 4
+#define test FUZZ_ASSERT_GT_LT_INT256() = {
+    // vm.assertGt(67890, -12345)
+    0x3039 0x00 sub 0x010932 VM_ASSERT_GT_INT256_INT256(0x00)
+
+    // vm.assertLt(-12345, 67890)
+    0x010932 0x3039 0x00 sub VM_ASSERT_LT_INT256_INT256(0x00)
+
+    // vm.assertGt(-12345, 67890, errorMessage)
+    //   reverts with "User provided message: -12345 <= 67890"
+    __RIGHTPAD(__BYTES(" 67890")) __RIGHTPAD(__BYTES("User provided message: -12345 <=")) 0x26
+    __RIGHTPAD(__BYTES("User provided message")) 0x15 0x60 0x010932 0x3039 0x00 sub
+    __FUNC_SIG("assertGt(int256,int256,string)") [VM_ADDRESS] CALL_FUNCTION(0x05)
+    EXPECT_CHEATCODE_ERROR(0x02)
+
+    // vm.assertGt(67890, 67890, errorMessage)
+    //   reverts with "User provided message: 67890 <= 67890"
+    __RIGHTPAD(__BYTES("67890")) __RIGHTPAD(__BYTES("User provided message: 67890 <= ")) 0x25
+    __RIGHTPAD(__BYTES("User provided message")) 0x15 0x60 0x010932 0x010932
+    __FUNC_SIG("assertGt(int256,int256,string)") [VM_ADDRESS] CALL_FUNCTION(0x05)
+    EXPECT_CHEATCODE_ERROR(0x02)
+
+    // vm.assertLt(-12345, -12345, errorMessage)
+    //   reverts with "User provided message: -12345 >= -12345"
+    __RIGHTPAD(__BYTES(" -12345")) __RIGHTPAD(__BYTES("User provided message: -12345 >=")) 0x27
+    __RIGHTPAD(__BYTES("User provided message")) 0x15 0x60 0x3039 0x00 sub 0x3039 0x00 sub
+    __FUNC_SIG("assertLt(int256,int256,string)") [VM_ADDRESS] CALL_FUNCTION(0x05)
+    EXPECT_CHEATCODE_ERROR(0x02)
+
+    // vm.assertLt(67890, -12345, errorMessage)
+    //   reverts with "User provided message: 67890 >= -12345"
+    __RIGHTPAD(__BYTES("-12345")) __RIGHTPAD(__BYTES("User provided message: 67890 >= ")) 0x26
+    __RIGHTPAD(__BYTES("User provided message")) 0x15 0x60 0x3039 0x00 sub 0x010932
+    __FUNC_SIG("assertLt(int256,int256,string)") [VM_ADDRESS] CALL_FUNCTION(0x05)
+    EXPECT_CHEATCODE_ERROR(0x02)
+
+    // vm.assertGtDecimal(-12345, 67890, 4)
+    //   reverts with "assertion failed: -1.2345 <= 6.7890"
+    __RIGHTPAD(__BYTES("890")) __RIGHTPAD(__BYTES("assertion failed: -1.2345 <= 6.7")) 0x23
+    0x04 0x010932 0x3039 0x00 sub
+    __FUNC_SIG("assertGtDecimal(int256,int256,uint256)") [VM_ADDRESS] CALL_FUNCTION(0x03)
+    EXPECT_CHEATCODE_ERROR(0x02)
+
+    // vm.assertGtDecimal(67890, 67890, 4)
+    //   reverts with "assertion failed: 6.7890 <= 6.7890"
+    __RIGHTPAD(__BYTES("90")) __RIGHTPAD(__BYTES("assertion failed: 6.7890 <= 6.78")) 0x22
+    0x04 0x010932 0x010932
+    __FUNC_SIG("assertGtDecimal(int256,int256,uint256)") [VM_ADDRESS] CALL_FUNCTION(0x03)
+    EXPECT_CHEATCODE_ERROR(0x02)
+
+    // vm.assertLtDecimal(-12345, -12345, 4)
+    //   reverts with "assertion failed: -1.2345 >= -1.2345"
+    __RIGHTPAD(__BYTES("2345")) __RIGHTPAD(__BYTES("assertion failed: -1.2345 >= -1.")) 0x24
+    0x04 0x3039 0x00 sub 0x3039 0x00 sub
+    __FUNC_SIG("assertLtDecimal(int256,int256,uint256)") [VM_ADDRESS] CALL_FUNCTION(0x03)
+    EXPECT_CHEATCODE_ERROR(0x02)
+
+    // vm.assertLtDecimal(67890, -12345, 4)
+    //   reverts with "assertion failed: 6.7890 >= -1.2345"
+    __RIGHTPAD(__BYTES("345")) __RIGHTPAD(__BYTES("assertion failed: 6.7890 >= -1.2")) 0x23
+    0x04 0x3039 0x00 sub 0x010932
+    __FUNC_SIG("assertLtDecimal(int256,int256,uint256)") [VM_ADDRESS] CALL_FUNCTION(0x03)
+    EXPECT_CHEATCODE_ERROR(0x02)
+}
+
+// left = 12345, right = 67890, decimals = 4
+#define test FUZZ_ASSERT_GE_LE_UINT256() = {
+    // vm.assertGe(12345, 12345)
+    0x3039 0x3039 VM_ASSERT_GE_UINT256_UINT256(0x00)
+
+    // vm.assertLe(12345, 12345)
+    0x3039 0x3039 VM_ASSERT_LE_UINT256_UINT256(0x00)
+
+    // vm.assertGe(67890, 67890)
+    0x010932 0x010932 VM_ASSERT_GE_UINT256_UINT256(0x00)
+
+    // vm.assertLe(67890, 67890)
+    0x010932 0x010932 VM_ASSERT_LE_UINT256_UINT256(0x00)
+
+    // vm.assertGe(67890, 12345)
+    0x3039 0x010932 VM_ASSERT_GE_UINT256_UINT256(0x00)
+
+    // vm.assertLe(12345, 67890)
+    0x010932 0x3039 VM_ASSERT_LE_UINT256_UINT256(0x00)
+
+    // vm.assertGe(12345, 67890, errorMessage)
+    //   reverts with "User provided message: 12345 < 67890"
+    __RIGHTPAD(__BYTES("7890")) __RIGHTPAD(__BYTES("User provided message: 12345 < 6")) 0x24
+    __RIGHTPAD(__BYTES("User provided message")) 0x15 0x60 0x010932 0x3039
+    __FUNC_SIG("assertGe(uint256,uint256,string)") [VM_ADDRESS] CALL_FUNCTION(0x05)
+    EXPECT_CHEATCODE_ERROR(0x02)
+
+    // vm.assertLe(67890, 12345, errorMessage)
+    //   reverts with "User provided message: 67890 > 12345"
+    __RIGHTPAD(__BYTES("2345")) __RIGHTPAD(__BYTES("User provided message: 67890 > 1")) 0x24
+    __RIGHTPAD(__BYTES("User provided message")) 0x15 0x60 0x3039 0x010932
+    __FUNC_SIG("assertLe(uint256,uint256,string)") [VM_ADDRESS] CALL_FUNCTION(0x05)
+    EXPECT_CHEATCODE_ERROR(0x02)
+
+    // vm.assertGeDecimal(12345, 67890, 4)
+    //   reverts with "assertion failed: 1.2345 < 6.7890"
+    __RIGHTPAD(__BYTES("0")) __RIGHTPAD(__BYTES("assertion failed: 1.2345 < 6.789")) 0x21
+    0x04 0x010932 0x3039
+    __FUNC_SIG("assertGeDecimal(uint256,uint256,uint256)") [VM_ADDRESS] CALL_FUNCTION(0x03)
+    EXPECT_CHEATCODE_ERROR(0x02)
+
+    // vm.assertLeDecimal(67890, 12345, 4)
+    //   reverts with "assertion failed: 6.7890 > 1.2345"
+    __RIGHTPAD(__BYTES("5")) __RIGHTPAD(__BYTES("assertion failed: 6.7890 > 1.234")) 0x21
+    0x04 0x3039 0x010932
+    __FUNC_SIG("assertLeDecimal(uint256,uint256,uint256)") [VM_ADDRESS] CALL_FUNCTION(0x03)
+    EXPECT_CHEATCODE_ERROR(0x02)
+}
+
+// left = -12345, right = 67890, decimals = 4
+#define test FUZZ_ASSERT_GE_LE_INT256() = {
+    // vm.assertGe(-12345, -12345)
+    0x3039 0x00 sub 0x3039 0x00 sub VM_ASSERT_GE_INT256_INT256(0x00)
+
+    // vm.assertLe(-12345, -12345)
+    0x3039 0x00 sub 0x3039 0x00 sub VM_ASSERT_LE_INT256_INT256(0x00)
+
+    // vm.assertGe(67890, 67890)
+    0x010932 0x010932 VM_ASSERT_GE_INT256_INT256(0x00)
+
+    // vm.assertLe(67890, 67890)
+    0x010932 0x010932 VM_ASSERT_LE_INT256_INT256(0x00)
+
+    // vm.assertGe(67890, -12345)
+    0x3039 0x00 sub 0x010932 VM_ASSERT_GE_INT256_INT256(0x00)
+
+    // vm.assertLe(-12345, 67890)
+    0x010932 0x3039 0x00 sub VM_ASSERT_LE_INT256_INT256(0x00)
+
+    // vm.assertGe(-12345, 67890, errorMessage)
+    //   reverts with "User provided message: -12345 < 67890"
+    __RIGHTPAD(__BYTES("67890")) __RIGHTPAD(__BYTES("User provided message: -12345 < ")) 0x25
+    __RIGHTPAD(__BYTES("User provided message")) 0x15 0x60 0x010932 0x3039 0x00 sub
+    __FUNC_SIG("assertGe(int256,int256,string)") [VM_ADDRESS] CALL_FUNCTION(0x05)
+    EXPECT_CHEATCODE_ERROR(0x02)
+
+    // vm.assertLe(67890, -12345, errorMessage)
+    //   reverts with "User provided message: 67890 > -12345"
+    __RIGHTPAD(__BYTES("12345")) __RIGHTPAD(__BYTES("User provided message: 67890 > -")) 0x25
+    __RIGHTPAD(__BYTES("User provided message")) 0x15 0x60 0x3039 0x00 sub 0x010932
+    __FUNC_SIG("assertLe(int256,int256,string)") [VM_ADDRESS] CALL_FUNCTION(0x05)
+    EXPECT_CHEATCODE_ERROR(0x02)
+
+    // vm.assertGeDecimal(-12345, 67890, 4)
+    //   reverts with "assertion failed: -1.2345 < 6.7890"
+    __RIGHTPAD(__BYTES("90")) __RIGHTPAD(__BYTES("assertion failed: -1.2345 < 6.78")) 0x22
+    0x04 0x010932 0x3039 0x00 sub
+    __FUNC_SIG("assertGeDecimal(int256,int256,uint256)") [VM_ADDRESS] CALL_FUNCTION(0x03)
+    EXPECT_CHEATCODE_ERROR(0x02)
+
+    // vm.assertLeDecimal(67890, -12345, 4)
+    //   reverts with "assertion failed: 6.7890 > -1.2345"
+    __RIGHTPAD(__BYTES("45")) __RIGHTPAD(__BYTES("assertion failed: 6.7890 > -1.23")) 0x22
+    0x04 0x3039 0x00 sub 0x010932
+    __FUNC_SIG("assertLeDecimal(int256,int256,uint256)") [VM_ADDRESS] CALL_FUNCTION(0x03)
+    EXPECT_CHEATCODE_ERROR(0x02)
+}
+
+// left = 100, right = 110, decimals = 1, so delta = 10
+#define test FUZZ_ASSERT_APPROX_EQ_ABS_UINT256() = {
+    // vm.assertApproxEqAbs(100, 110, 10)
+    0x0a 0x6e 0x64 VM_ASSERT_APPROX_EQ_ABS_UINT256_UINT256_UINT256(0x00)
+
+    // vm.assertApproxEqAbs(100, 110, 9, errorMessage)
+    //   reverts with "User provided message: 100 !~= 110 (max delta: 9, real delta: 10)"
+    __RIGHTPAD(__BYTES(")")) __RIGHTPAD(__BYTES("10 (max delta: 9, real delta: 10")) __RIGHTPAD(__BYTES("User provided message: 100 !~= 1")) 0x41
+    __RIGHTPAD(__BYTES("User provided message")) 0x15 0x80 0x09 0x6e 0x64
+    __FUNC_SIG("assertApproxEqAbs(uint256,uint256,uint256,string)") [VM_ADDRESS] CALL_FUNCTION(0x06)
+    EXPECT_CHEATCODE_ERROR(0x03)
+
+    // vm.assertApproxEqAbsDecimal(100, 110, 9, 1)
+    //   reverts with "assertion failed: 10.0 !~= 11.0 (max delta: 0.9, real delta: 1.0)"
+    __RIGHTPAD(__BYTES(")")) __RIGHTPAD(__BYTES("(max delta: 0.9, real delta: 1.0")) __RIGHTPAD(__BYTES("assertion failed: 10.0 !~= 11.0 ")) 0x41
+    0x01 0x09 0x6e 0x64
+    __FUNC_SIG("assertApproxEqAbsDecimal(uint256,uint256,uint256,uint256)") [VM_ADDRESS] CALL_FUNCTION(0x04)
+    EXPECT_CHEATCODE_ERROR(0x03)
+}
+
+// left = -5, right = 5, decimals = 1, so delta = 10
+#define test FUZZ_ASSERT_APPROX_EQ_ABS_INT256() = {
+    // vm.assertApproxEqAbs(-5, 5, 10)
+    0x0a 0x05 0x05 0x00 sub VM_ASSERT_APPROX_EQ_ABS_INT256_INT256_UINT256(0x00)
+
+    // vm.assertApproxEqAbs(-5, 5, 9, errorMessage)
+    //   reverts with "User provided message: -5 !~= 5 (max delta: 9, real delta: 10)"
+    __RIGHTPAD(__BYTES("(max delta: 9, real delta: 10)")) __RIGHTPAD(__BYTES("User provided message: -5 !~= 5 ")) 0x3e
+    __RIGHTPAD(__BYTES("User provided message")) 0x15 0x80 0x09 0x05 0x05 0x00 sub
+    __FUNC_SIG("assertApproxEqAbs(int256,int256,uint256,string)") [VM_ADDRESS] CALL_FUNCTION(0x06)
+    EXPECT_CHEATCODE_ERROR(0x02)
+
+    // vm.assertApproxEqAbsDecimal(-5, 5, 9, 1)
+    //   reverts with "assertion failed: -0.5 !~= 0.5 (max delta: 0.9, real delta: 1.0)"
+    __RIGHTPAD(__BYTES("max delta: 0.9, real delta: 1.0)")) __RIGHTPAD(__BYTES("assertion failed: -0.5 !~= 0.5 (")) 0x40
+    0x01 0x09 0x05 0x05 0x00 sub
+    __FUNC_SIG("assertApproxEqAbsDecimal(int256,int256,uint256,uint256)") [VM_ADDRESS] CALL_FUNCTION(0x04)
+    EXPECT_CHEATCODE_ERROR(0x02)
+}
+
+// left = 95, right = 100, decimals = 1, so percentDelta = 50000000000000000
+#define test FUZZ_ASSERT_APPROX_EQ_REL_UINT256() = {
+    // vm.assertApproxEqRel(95, 100, 50000000000000000)
+    0xb1a2bc2ec50000 0x64 0x5f VM_ASSERT_APPROX_EQ_REL_UINT256_UINT256_UINT256(0x00)
+
+    // vm.assertApproxEqRel(95, 100, 49999999999999999, errorMessage)
+    //   reverts with "User provided message: 95 !~= 100 (max delta: 4.9999999999999999%, real delta: 5.0000000000000000%)"
+    __RIGHTPAD(__BYTES("0%)")) __RIGHTPAD(__BYTES("%, real delta: 5.000000000000000")) __RIGHTPAD(__BYTES("0 (max delta: 4.9999999999999999")) __RIGHTPAD(__BYTES("User provided message: 95 !~= 10")) 0x63
+    __RIGHTPAD(__BYTES("User provided message")) 0x15 0x80 0xb1a2bc2ec4ffff 0x64 0x5f
+    __FUNC_SIG("assertApproxEqRel(uint256,uint256,uint256,string)") [VM_ADDRESS] CALL_FUNCTION(0x06)
+    EXPECT_CHEATCODE_ERROR(0x04)
+
+    // vm.assertApproxEqRelDecimal(95, 100, 49999999999999999, 1)
+    //   reverts with "assertion failed: 9.5 !~= 10.0 (max delta: 4.9999999999999999%, real delta: 5.0000000000000000%)"
+    __RIGHTPAD(__BYTES("real delta: 5.0000000000000000%)")) __RIGHTPAD(__BYTES("max delta: 4.9999999999999999%, ")) __RIGHTPAD(__BYTES("assertion failed: 9.5 !~= 10.0 (")) 0x60
+    0x01 0xb1a2bc2ec4ffff 0x64 0x5f
+    __FUNC_SIG("assertApproxEqRelDecimal(uint256,uint256,uint256,uint256)") [VM_ADDRESS] CALL_FUNCTION(0x04)
+    EXPECT_CHEATCODE_ERROR(0x03)
+}
+
+// left = -5, right = 100, decimals = 1, so percentDelta = 1050000000000000000
+#define test FUZZ_ASSERT_APPROX_EQ_REL_INT256() = {
+    // vm.assertApproxEqRel(-5, 100, 1050000000000000000)
+    0x0e92596fd6290000 0x64 0x05 0x00 sub VM_ASSERT_APPROX_EQ_REL_INT256_INT256_UINT256(0x00)
+
+    // vm.assertApproxEqRel(-5, 100, 1049999999999999999, errorMessage)
+    //   reverts with "User provided message: -5 !~= 100 (max delta: 104.9999999999999999%, real delta: 105.0000000000000000%)"
+    __RIGHTPAD(__BYTES("00000%)")) __RIGHTPAD(__BYTES("99%, real delta: 105.00000000000")) __RIGHTPAD(__BYTES("0 (max delta: 104.99999999999999")) __RIGHTPAD(__BYTES("User provided message: -5 !~= 10")) 0x67
+    __RIGHTPAD(__BYTES("User provided message")) 0x15 0x80 0x0e92596fd628ffff 0x64 0x05 0x00 sub
+    __FUNC_SIG("assertApproxEqRel(int256,int256,uint256,string)") [VM_ADDRESS] CALL_FUNCTION(0x06)
+    EXPECT_CHEATCODE_ERROR(0x04)
+
+    // vm.assertApproxEqRelDecimal(-5, 100, 1049999999999999999, 1)
+    //   reverts with "assertion failed: -0.5 !~= 10.0 (max delta: 104.9999999999999999%, real delta: 105.0000000000000000%)"
+    __RIGHTPAD(__BYTES("000%)")) __RIGHTPAD(__BYTES("%, real delta: 105.0000000000000")) __RIGHTPAD(__BYTES("(max delta: 104.9999999999999999")) __RIGHTPAD(__BYTES("assertion failed: -0.5 !~= 10.0 ")) 0x65
+    0x01 0x0e92596fd628ffff 0x64 0x05 0x00 sub
+    __FUNC_SIG("assertApproxEqRelDecimal(int256,int256,uint256,uint256)") [VM_ADDRESS] CALL_FUNCTION(0x04)
+    EXPECT_CHEATCODE_ERROR(0x04)
+}
+
+#define test ASSERT_BOOL() = {
+    // vm.assertTrue(true)
+    0x01 VM_ASSERT_TRUE(0x00)
+
+    // vm.assertFalse(false)
+    0x00 VM_ASSERT_FALSE(0x00)
+
+    // vm.assertTrue(false)
+    //   reverts with "assertion failed"
+    __RIGHTPAD(__BYTES("assertion failed")) 0x10
+    0x00
+    __FUNC_SIG("assertTrue(bool)") [VM_ADDRESS] CALL_FUNCTION(0x01)
+    EXPECT_CHEATCODE_ERROR(0x01)
+
+    // vm.assertTrue(false, errorMessage)
+    //   reverts with "User provided message"
+    __RIGHTPAD(__BYTES("User provided message")) 0x15
+    __RIGHTPAD(__BYTES("User provided message")) 0x15 0x40 0x00
+    __FUNC_SIG("assertTrue(bool,string)") [VM_ADDRESS] CALL_FUNCTION(0x04)
+    EXPECT_CHEATCODE_ERROR(0x01)
+
+    // vm.assertFalse(true)
+    //   reverts with "assertion failed"
+    __RIGHTPAD(__BYTES("assertion failed")) 0x10
+    0x01
+    __FUNC_SIG("assertFalse(bool)") [VM_ADDRESS] CALL_FUNCTION(0x01)
+    EXPECT_CHEATCODE_ERROR(0x01)
+
+    // vm.assertFalse(true, errorMessage)
+    //   reverts with "User provided message"
+    __RIGHTPAD(__BYTES("User provided message")) 0x15
+    __RIGHTPAD(__BYTES("User provided message")) 0x15 0x40 0x01
+    __FUNC_SIG("assertFalse(bool,string)") [VM_ADDRESS] CALL_FUNCTION(0x04)
+    EXPECT_CHEATCODE_ERROR(0x01)
+}
+
+#define test ASSERT_APPROX_EQ_REL() = {
+    // vm.assertApproxEqRel(1, 0, 0, errorMessage)
+    //   reverts with "User provided message: 1 !~= 0 (max delta: 0.0000000000000000%, real delta: undefined)"
+    __RIGHTPAD(__BYTES("real delta: undefined)")) __RIGHTPAD(__BYTES("max delta: 0.0000000000000000%, ")) __RIGHTPAD(__BYTES("User provided message: 1 !~= 0 (")) 0x56
+    __RIGHTPAD(__BYTES("User provided message")) 0x15 0x80 0x00 0x00 0x01
+    __FUNC_SIG("assertApproxEqRel(int256,int256,uint256,string)") [VM_ADDRESS] CALL_FUNCTION(0x06)
+    EXPECT_CHEATCODE_ERROR(0x03)
+
+    // vm.assertApproxEqRel(1, 0, 0)
+    //   reverts with "assertion failed: 1 !~= 0 (max delta: 0.0000000000000000%, real delta: undefined)"
+    __RIGHTPAD(__BYTES("delta: undefined)")) __RIGHTPAD(__BYTES("elta: 0.0000000000000000%, real ")) __RIGHTPAD(__BYTES("assertion failed: 1 !~= 0 (max d")) 0x51
+    0x00 0x00 0x01
+    __FUNC_SIG("assertApproxEqRel(uint256,uint256,uint256)") [VM_ADDRESS] CALL_FUNCTION(0x03)
+    EXPECT_CHEATCODE_ERROR(0x03)
+
+    // vm.assertApproxEqRel(type(uint256).max, 1, 1)
+    //   reverts with "assertion failed: overflow in delta calculation"
+    __RIGHTPAD(__BYTES("lta calculation")) __RIGHTPAD(__BYTES("assertion failed: overflow in de")) 0x2f
+    0x01 0x01 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+    __FUNC_SIG("assertApproxEqRel(uint256,uint256,uint256)") [VM_ADDRESS] CALL_FUNCTION(0x03)
+    EXPECT_CHEATCODE_ERROR(0x02)
+
+    // vm.assertApproxEqRel(type(int256).min, type(int256).max, 2e18)
+    0x1bc16d674ec80000 0x7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff 0x80 0xf8 shl VM_ASSERT_APPROX_EQ_REL_INT256_INT256_UINT256(0x00)
+
+    // vm.assertApproxEqRel(uint256(0), type(uint256).max, 1e18)
+    0x0de0b6b3a7640000 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff 0x00 VM_ASSERT_APPROX_EQ_REL_UINT256_UINT256_UINT256(0x00)
+
+    // vm.assertApproxEqRel(0, 0, 0)
+    0x00 0x00 0x00 VM_ASSERT_APPROX_EQ_REL_UINT256_UINT256_UINT256(0x00)
+}
+

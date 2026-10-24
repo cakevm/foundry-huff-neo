@@ -1,0 +1,31 @@
+// Ported from Foundry's testdata/default/cheats/Prevrandao.t.sol (Foundry v1.8.6, MIT OR Apache-2.0)
+// Skipped: none. hnc test does not fuzz, so the fuzzed tests run with a fixed value that vm.assume would accept.
+
+#include "../../src/test.huff"
+
+#define constant NEW_PREVRANDAO = 0xc0ffee
+
+#define test PREVRANDAO() = {
+    0x00 prevrandao ASSERT_EQ()                        // assertEq(block.prevrandao, 0)
+    0x0a VM_PREVRANDAO_UINT256(0x00)                   // vm.prevrandao(uint256(10))
+    0x0a prevrandao ASSERT_EQ()
+}
+
+#define test PREVRANDAO_FUZZED() = {
+    prevrandao [NEW_PREVRANDAO] eq iszero VM_ASSUME(0x00)  // vm.assume(newPrevrandao != block.prevrandao)
+    0x00 prevrandao ASSERT_EQ()
+    [NEW_PREVRANDAO] VM_PREVRANDAO_UINT256(0x00)
+    [NEW_PREVRANDAO] prevrandao ASSERT_EQ()
+}
+
+#define test PREVRANDAO_SNAPSHOT_FUZZED() = {
+    prevrandao [NEW_PREVRANDAO] eq iszero VM_ASSUME(0x00)
+    prevrandao                                         // [oldPrevrandao]
+    VM_SNAPSHOT_STATE(0x00)                            // [snapshotId, oldPrevrandao]
+
+    [NEW_PREVRANDAO] VM_PREVRANDAO_UINT256(0x00)
+    [NEW_PREVRANDAO] prevrandao ASSERT_EQ()
+
+    VM_REVERT_TO_STATE(0x00) ASSERT_TRUE()             // assert(vm.revertToState(snapshotId))
+    prevrandao ASSERT_EQ()                             // assertEq(block.prevrandao, oldPrevrandao)
+}

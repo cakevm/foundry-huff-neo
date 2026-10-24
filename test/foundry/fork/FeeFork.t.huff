@@ -1,0 +1,29 @@
+// Ported from Foundry's testdata/default/cheats/Fee.t.sol (Foundry v1.8.6, MIT OR Apache-2.0)
+// Needs MAINNET_HTTP, see the rpc_endpoints alias mainnet in foundry.toml
+// Skipped: none of MultiForkFeeIsolationTest; the other contracts of Fee.t.sol are in ../Fee.t.huff.
+// The aliases mainnet and mainnet2 are both `mainnet`.
+
+#include "../../../src/test.huff"
+
+// 12_345 gwei, a basefee that no real mainnet block has
+#define constant SENTINEL_FEE = 0x0b3a4b56fa00
+// 14_608_400
+#define constant FORK_BLOCK = 0xdee810
+
+#define test FEE_OVERRIDE_DOES_NOT_BLEED_ACROSS_FORKS() = {
+    // uint256 forkA = vm.createSelectFork("mainnet", FORK_BLOCK)
+    __RIGHTPAD(__BYTES("mainnet")) 0x07 [FORK_BLOCK] 0x40
+    VM_CREATE_SELECT_FORK_STRING_UINT256(0x04, 0x00)  // [forkA]
+    [SENTINEL_FEE] VM_FEE(0x00)
+    [SENTINEL_FEE] basefee ASSERT_EQ()                 // "override not active on forkA"
+
+    // Switching to a second fork must not carry forkA's override along.
+    // vm.createSelectFork("mainnet2", FORK_BLOCK + 1)
+    __RIGHTPAD(__BYTES("mainnet")) 0x07 [FORK_BLOCK] 0x01 add 0x40
+    VM_CREATE_SELECT_FORK_STRING_UINT256(0x04, 0x00) pop
+    [SENTINEL_FEE] basefee ASSERT_NOT_EQ()             // "forkA fee override bled into forkB"
+
+    // Switching back to forkA must restore its override.
+    VM_SELECT_FORK(0x00)
+    [SENTINEL_FEE] basefee ASSERT_EQ()                 // "forkA override lost after switching back"
+}

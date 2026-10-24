@@ -1,0 +1,22 @@
+// Ported from Foundry's testdata/default/cheats/Load.t.sol (Foundry v1.8.6, MIT OR Apache-2.0)
+// Skipped: none.
+
+#include "../../src/test.huff"
+
+// 0x1000 is Storage, with slot0 = 10 set by a decorator; its code only stops
+#define constant STORE = 0x1000
+
+// The test's own slot0 = 20, in slot 0
+#[store(0, 20)]
+#define test LOAD_OWN_STORAGE() = {
+    0x14 0x00 address VM_LOAD(0x00) ASSERT_EQ()        // assertEq(uint256(vm.load(address(this), bytes32(0))), 20)
+}
+
+#define test LOAD_AVAILABLE_ON_PRECOMPILES() = {
+    0x00 0x00 0x01 VM_LOAD(0x00) ASSERT_EQ_BYTES32()   // assertEq(vm.load(address(1), bytes32(0)), bytes32(0))
+}
+
+#[etch(0x1000, "0x00"), store(0, 10, at = 0x1000)]
+#define test LOAD_OTHER_STORAGE() = {
+    0x0a 0x00 [STORE] VM_LOAD(0x00) ASSERT_EQ()        // assertEq(uint256(vm.load(address(store), bytes32(0))), 10)
+}

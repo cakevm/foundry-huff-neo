@@ -1,0 +1,150 @@
+#include "../src/test.huff"
+
+#define error Unauthorized()
+#define event Ping(uint256)
+
+/* ── Block and state ── */
+
+#define test WARP_AND_ROLL() = {
+    0x6553f100 VM_WARP(0x00)                 // vm.warp(1700000000)
+    0x6553f100 timestamp ASSERT_EQ()         // assertEq(block.timestamp, 1700000000)
+
+    0x64 VM_ROLL(0x00)                       // vm.roll(100)
+    0x64 number ASSERT_EQ()
+}
+
+#define test STORE_AND_LOAD() = {
+    0xbeef 0x01 address VM_STORE(0x00)       // vm.store(address(this), 1, 0xbeef)
+    0xbeef 0x01 sload ASSERT_EQ()
+
+    0x01 address VM_LOAD(0x00)               // vm.load(address(this), 1)
+    0xbeef swap1 ASSERT_EQ()
+}
+
+#define test DEAL_AND_NONCE() = {
+    0x03e8 0x1000 VM_DEAL(0x00)              // vm.deal(0x1000, 1000)
+    0x03e8 0x1000 balance ASSERT_EQ()
+
+    0x07 0x1000 VM_SET_NONCE(0x00)           // vm.setNonce(0x1000, 7)
+    0x07 0x1000 VM_GET_NONCE(0x00) ASSERT_EQ()
+}
+
+#define test SNAPSHOT_AND_REVERT() = {
+    VM_SNAPSHOT_STATE(0x00)                  // [snapshot]
+    0x03e8 0x1000 VM_DEAL(0x00)
+    VM_REVERT_TO_STATE(0x00) ASSERT_TRUE()   // vm.revertToState(snapshot)
+    0x00 0x1000 balance ASSERT_EQ()
+}
+
+/* ── Keys and signatures ── */
+
+#define test SIGN_AND_RECOVER() = {
+    0x01 VM_ADDR(0x00)                       // vm.addr(1)
+    0x7E5F4552091A69125d5DfCb7b8C2659029395Bdf dup2 ASSERT_EQ_ADDRESS()
+
+    // ecrecover(digest, v, r, s) of vm.sign(1, digest) is vm.addr(1)
+    0xd1 0x01 VM_SIGN(0x00)                  // [v, r, s]
+    0xa0 mstore 0xc0 mstore 0xe0 mstore      // ecrecover input at 0x80: digest, v, r, s
+    0xd1 0x80 mstore
+    0x20 0x100 0x80 0x80 0x01 gas staticcall pop
+    0x100 mload ASSERT_EQ_ADDRESS()
+}
+
+/* ── Calls to other contracts ── */
+
+// 0x2000 returns its caller
+#[etch(0x2000, "0x335f5260205ff3")]
+#define test PRANK_SETS_THE_NEXT_CALLER() = {
+    0xbad VM_PRANK(0x00)                     // vm.prank(0xbad)
+    __FUNC_SIG("caller()") 0x2000 STATICCALL_FUNCTION(0x00)
+    0xbad swap1 ASSERT_EQ_ADDRESS()
+
+    __FUNC_SIG("caller()") 0x2000 STATICCALL_FUNCTION(0x00)
+    address swap1 ASSERT_EQ_ADDRESS()
+}
+
+// 0x3000 reverts with Unauthorized()
+#[etch(0x3000, "0x6382b4290060e01b5f5260045ffd")]
+#define test EXPECT_REVERT() = {
+    // With a helper: expect the error, call, and check that the call reverted that way
+    __FUNC_SIG("fail()") 0x3000 __ERROR(Unauthorized) EXPECT_REVERT_CALL(0x00)
+
+    // With the cheatcode: a bytes4 can also be pushed by __FUNC_SIG
+    __FUNC_SIG("Unauthorized()") VM_EXPECT_REVERT_BYTES4(0x00)
+    __FUNC_SIG("fail()") 0x3000 CALL_FUNCTION(0x00)
+    ASSERT_TRUE()                            // an expected revert reports success
+}
+
+// 0x4000 adds its two arguments
+#[etch(0x4000, "0x6024356004350160005260206000f3")]
+#define test CALL_WITH_ARGUMENTS() = {
+    0x02 0x28 __FUNC_SIG("add(uint256,uint256)") 0x4000 STATICCALL_FUNCTION(0x02)
+    0x2a swap1 ASSERT_EQ()
+
+    // Read the return data before the next call; an assertion is a call too
+    0x02 0x28 __FUNC_SIG("add(uint256,uint256)") 0x4000 CALL_FUNCTION(0x02)
+    LAST_RETURN_WORD() swap1 ASSERT_TRUE()   // [word]
+    0x2a swap1 ASSERT_EQ()
+}
+
+// 0x5000 has no code, so a call returns whatever the mock says
+#define test MOCK_CALL() = {
+    // vm.mockCall(0x5000, abi.encodeWithSignature("price()"), abi.encode(42))
+    0x2a 0x20                                // return data: length, word
+    __FUNC_SIG("price()") 0xe0 shl 0x04      // calldata: length, word
+    0xa0 0x60 0x5000                         // the address, then the offsets of the two values
+    VM_MOCK_CALL(0x07, 0x00)
+    __FUNC_SIG("price()") 0x5000 STATICCALL_FUNCTION(0x00)
+    0x2a swap1 ASSERT_EQ()
+}
+
+// 0x6000 emits Ping(7)
+#[etch(0x6000, "0x60075f527f48257dc961b6f792c2b78a080dacfed693b660960a702de21cee364e20270e2f60205fa100")]
+#define test EXPECT_EMIT() = {
+    VM_EXPECT_EMIT(0x00)                     // vm.expectEmit()
+    0x07 0x00 mstore __EVENT_HASH(Ping) 0x20 0x00 log1
+    __FUNC_SIG("ping()") 0x6000 CALL_FUNCTION(0x00)
+    ASSERT_TRUE()
+}
+
+#define test FAILED_CHEATCODE_MESSAGE() = {
+    // vm.addr(0) fails with "vm.addr: private key cannot be 0"
+    __RIGHTPAD(__BYTES("vm.addr: private key cannot be 0")) 0x20
+    0x00 __FUNC_SIG("addr(uint256)") [VM_ADDRESS] CALL_FUNCTION(0x01)
+    EXPECT_CHEATCODE_ERROR(0x01)
+}
+
+/* ── Dynamic values ── */
+
+#define test TO_STRING_WRITES_THE_RETURN_DATA() = {
+    0x2a VM_TO_STRING_UINT256(0x00)          // vm.toString(42), ABI-encoded at memory 0x00
+    0x60 swap1 ASSERT_EQ()                   // offset, length and one word of data
+    0x02 0x20 mload ASSERT_EQ()
+    __RIGHTPAD(__BYTES("42")) 0x40 mload ASSERT_EQ()
+}
+
+#define test STRINGS_ARE_PASSED_AS_ABI_WORDS() = {
+    // vm.assertEq("hi", "hi"): two offsets, then the length and data of each string
+    __RIGHTPAD(__BYTES("hi")) 0x02
+    __RIGHTPAD(__BYTES("hi")) 0x02
+    0x80 0x40
+    VM_ASSERT_EQ_STRING_STRING(0x06, 0x00)
+}
+
+#define test DYNAMIC_RESULT_INTO_CHEATCODE() = {
+    // vm.assertEq(vm.toString(42), "42"): the returned string goes into the next call through memory
+    0x2a VM_TO_STRING_UINT256(0x00) pop      // ABI-encoded "42" at 0x00: offset, length, data
+    __FUNC_SIG("assertEq(string,string)") 0xe0 shl 0x100 mstore
+    0x40 0x104 mstore 0x80 0x124 mstore      // offsets of the two strings
+    0x40 0x20 0x144 mcopy                    // the first string: length and data from the result
+    0x02 0x184 mstore __RIGHTPAD(__BYTES("42")) 0x1a4 mstore
+    0xc4 0x100 CALL_CHEATCODE_FROM_MEMORY()
+}
+
+#[etch(0x6000, "0x60075f527f48257dc961b6f792c2b78a080dacfed693b660960a702de21cee364e20270e2f60205fa100")]
+#define test RECORD_LOGS() = {
+    VM_RECORD_LOGS(0x00)
+    __FUNC_SIG("ping()") 0x6000 CALL_FUNCTION(0x00) ASSERT_TRUE()
+    VM_GET_RECORDED_LOGS(0x00) pop           // Log[] at memory 0x00
+    0x01 0x20 mload ASSERT_EQ()              // one log
+}

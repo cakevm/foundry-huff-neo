@@ -1,0 +1,51 @@
+// Ported from Foundry's testdata/default/cheats/Store.t.sol (Foundry v1.8.6, MIT OR Apache-2.0)
+// Skipped: none. hnc test does not fuzz, so testStoreFuzzed runs with fixed values. vm._expectCheatcodeRevert
+// is not in src/vm.huff, so it is called directly.
+
+#include "../../src/test.huff"
+
+// 0x1000 is Storage, with slot0 = 10 and slot1 = 20 set by decorators: slot1() returns slot 1, any other
+// selector, such as slot0(), returns slot 0
+//   5f 35 60e0 1c            selector
+//   63 1f457cb5 14           [selector == slot1()]
+//   54 5f 52 6020 5f f3      return sload(that slot)
+#define constant STORE = 0x1000
+
+#define macro ASSERT_INITIAL_SLOTS() = takes(0) returns(0) {
+    0x0a __FUNC_SIG("slot0()") [STORE] STATICCALL_FUNCTION(0x00) ASSERT_EQ()  // assertEq(store.slot0(), 10)
+    0x14 __FUNC_SIG("slot1()") [STORE] STATICCALL_FUNCTION(0x00) ASSERT_EQ()  // assertEq(store.slot1(), 20)
+}
+
+#[etch(0x1000, "0x5f3560e01c631f457cb514545f5260205ff3"), store(0, 10, at = 0x1000), store(1, 20, at = 0x1000)]
+#define test STORE() = {
+    ASSERT_INITIAL_SLOTS()
+
+    0x01 0x00 [STORE] VM_STORE(0x00)                   // vm.store(address(store), bytes32(0), bytes32(uint256(1)))
+    0x01 __FUNC_SIG("slot0()") [STORE] STATICCALL_FUNCTION(0x00) ASSERT_EQ()
+    0x14 __FUNC_SIG("slot1()") [STORE] STATICCALL_FUNCTION(0x00) ASSERT_EQ()
+}
+
+#[etch(0x1000, "0x5f3560e01c631f457cb514545f5260205ff3"), store(0, 10, at = 0x1000), store(1, 20, at = 0x1000)]
+#define test STORE_NOT_AVAILABLE_ON_PRECOMPILES() = {
+    ASSERT_INITIAL_SLOTS()
+
+    // vm._expectCheatcodeRevert("cannot use precompile 0x0000000000000000000000000000000000000001 as an argument")
+    0x20617320616e20617267756d656e740000000000000000000000000000000000
+    0x3030303030303030303030303030303030303030303030303030303030303031
+    0x63616e6e6f742075736520707265636f6d70696c652030783030303030303030
+    0x4f 0x20 __FUNC_SIG("_expectCheatcodeRevert(bytes)") [VM_ADDRESS] CALL_FUNCTION(0x05) REQUIRE_SUCCESS()
+    0x01 0x00 0x01 VM_STORE(0x00)                      // vm.store(address(1), bytes32(0), bytes32(uint256(1)))
+}
+
+#define constant SLOT0 = 0xdeadbeef
+#define constant SLOT1 = 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff
+
+#[etch(0x1000, "0x5f3560e01c631f457cb514545f5260205ff3"), store(0, 10, at = 0x1000), store(1, 20, at = 0x1000)]
+#define test STORE_FUZZED() = {
+    ASSERT_INITIAL_SLOTS()
+
+    [SLOT0] 0x00 [STORE] VM_STORE(0x00)                // vm.store(address(store), bytes32(0), bytes32(slot0))
+    [SLOT1] 0x01 [STORE] VM_STORE(0x00)                // vm.store(address(store), bytes32(uint256(1)), bytes32(slot1))
+    [SLOT0] __FUNC_SIG("slot0()") [STORE] STATICCALL_FUNCTION(0x00) ASSERT_EQ()
+    [SLOT1] __FUNC_SIG("slot1()") [STORE] STATICCALL_FUNCTION(0x00) ASSERT_EQ()
+}

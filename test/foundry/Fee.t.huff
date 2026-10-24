@@ -1,0 +1,59 @@
+// Ported from Foundry's testdata/default/cheats/Fee.t.sol (Foundry v1.8.6, MIT OR Apache-2.0)
+// Skipped: MultiForkFeeIsolationTest (needs mainnet forks). hnc test does not fuzz, so testFeeFuzzed runs
+// with the largest uint64 fee. The isolated tests need `--isolate`, which hnc sets per run; they pass
+// with and without it.
+
+#include "../../src/test.huff"
+
+// 0x1000 is BaseFeeRecorder: record() stores block.basefee in slot 0, lastBaseFee() returns it
+//   5f 35 60e0 1c            selector
+//   63 266cf109 14 6016 57   record() jumps to 0x16
+//   5f 54 5f 52 6020 5f f3   lastBaseFee(): return slot 0
+//   5b 48 5f 55 00           record(): sstore(0, basefee)
+#define constant RECORDER = 0x1000
+
+#define test FEE() = {
+    0x0a VM_FEE(0x00)                                  // vm.fee(10)
+    0x0a basefee ASSERT_EQ()                           // assertEq(block.basefee, 10)
+}
+
+#define test FEE_FUZZED() = {
+    0xffffffffffffffff VM_FEE(0x00)                    // vm.fee(type(uint64).max)
+    0xffffffffffffffff basefee ASSERT_EQ()
+}
+
+#[etch(0x1000, "0x5f3560e01c63266cf109146016575f545f5260205ff35b485f5500")]
+#define test FEE_VISIBLE_IN_CALLED_CONTRACT() = {
+    0x6a2bb7d000 VM_FEE(0x00)                          // vm.fee(456 gwei)
+    __FUNC_SIG("record()") [RECORDER] CALL_FUNCTION(0x00) REQUIRE_SUCCESS()
+    0x6a2bb7d000 __FUNC_SIG("lastBaseFee()") [RECORDER] STATICCALL_FUNCTION(0x00) ASSERT_EQ()
+}
+
+#define test FEE_REVERT_TO_STATE_CLEARS_OVERRIDE() = {
+    0x03e8 VM_FEE(0x00)                                // vm.fee(1000)
+    VM_SNAPSHOT_STATE(0x00)                            // [id]
+    0x07d0 VM_FEE(0x00)                                // vm.fee(2000)
+    0x07d0 basefee ASSERT_EQ()
+    VM_REVERT_TO_STATE(0x00) ASSERT_TRUE()             // assertTrue(vm.revertToState(id))
+    0x03e8 basefee ASSERT_EQ()
+}
+
+#define test FEE_REVERT_TO_STATE_RESTORES_PRIOR_OVERRIDE() = {
+    VM_SNAPSHOT_STATE(0x00)                            // [id]
+    0x07d0 VM_FEE(0x00)                                // vm.fee(2000)
+    0x07d0 basefee ASSERT_EQ()
+    VM_REVERT_TO_STATE(0x00) ASSERT_TRUE()
+    0x07d0 basefee ASSERT_NOT_EQ()                     // no override was set before the snapshot
+}
+
+#[etch(0x1000, "0x5f3560e01c63266cf109146016575f545f5260205ff35b485f5500")]
+#define test FEE_REVERT_TO_STATE_CLEARS_OVERRIDE_IN_ISOLATION() = {
+    0x03e8 VM_FEE(0x00)                                // vm.fee(1000)
+    VM_SNAPSHOT_STATE(0x00)                            // [id]
+    0x07d0 VM_FEE(0x00)                                // vm.fee(2000)
+    __FUNC_SIG("record()") [RECORDER] CALL_FUNCTION(0x00) REQUIRE_SUCCESS()
+    0x07d0 __FUNC_SIG("lastBaseFee()") [RECORDER] STATICCALL_FUNCTION(0x00) ASSERT_EQ()
+    VM_REVERT_TO_STATE(0x00) ASSERT_TRUE()
+    __FUNC_SIG("record()") [RECORDER] CALL_FUNCTION(0x00) REQUIRE_SUCCESS()
+    0x03e8 __FUNC_SIG("lastBaseFee()") [RECORDER] STATICCALL_FUNCTION(0x00) ASSERT_EQ()
+}

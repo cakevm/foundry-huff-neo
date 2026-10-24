@@ -1,0 +1,20 @@
+// Ported from Foundry's testdata/default/cheats/Addr.t.sol (Foundry v1.8.6, MIT OR Apache-2.0)
+// Skipped: none. testRevertIfPkZero uses `vm.expectRevert` on the cheatcode itself, which needs
+// `allow_internal_expect_revert`; here the cheatcode is called directly and its error is checked.
+
+#include "../../src/test.huff"
+
+#define test REVERT_IF_PK_ZERO() = {
+    // vm.expectRevert("vm.addr: private key cannot be 0"); vm.addr(0);
+    __RIGHTPAD(__BYTES("vm.addr: private key cannot be 0")) 0x20
+    0x00 __FUNC_SIG("addr(uint256)") [VM_ADDRESS] CALL_FUNCTION(0x01)
+    EXPECT_CHEATCODE_ERROR(0x01)
+}
+
+#define test ADDR() = {
+    // assertEq(vm.addr(pk), expected, "expected address did not match")
+    __RIGHTPAD(__BYTES("expected address did not match")) 0x1e 0x60
+    0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+    0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 VM_ADDR(0x00)
+    VM_ASSERT_EQ_ADDRESS_ADDRESS_STRING(0x05, 0x00)
+}

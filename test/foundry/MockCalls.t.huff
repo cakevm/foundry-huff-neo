@@ -1,0 +1,71 @@
+// Ported from Foundry's testdata/default/cheats/MockCalls.t.sol (Foundry v1.8.6, MIT OR Apache-2.0)
+// Skipped: nothing. The random user and token addresses from vm.addr(vm.randomUint()) are fixed
+// addresses, as they only need to be codeless accounts.
+
+#include "../../src/test.huff"
+
+#define function balanceOf(address) view returns (uint256)
+
+#define constant USER = 0xbeef
+#define constant ERC20 = 0xe2c20
+
+#define constant ONE_ETHER = 0x0de0b6b3a7640000
+#define constant TWO_ETHER = 0x1bc16d674ec80000
+#define constant THREE_ETHER = 0x29a2241af62c0000
+#define constant ETHER_6_423 = 0x5923147830558000
+#define constant ETHER_7_219 = 0x642f0a40898b8000
+
+/// Pushes the length and words of abi.encodeWithSignature("balanceOf(address)", USER), length on top
+#define macro BALANCE_OF_DATA() = takes(0) returns(3) {
+    [USER] 0xe0 shl                     // the last 4 bytes of the address word
+    __FUNC_SIG(balanceOf) 0xe0 shl      // the selector and the first 28 bytes of the address word
+    0x24
+}
+
+/// Consumes [value], calls ERC20 with `data` and the value, and pushes the word it returns
+#define macro CALL_BALANCE_OF() = takes(1) returns(1) {
+    [USER] __FUNC_SIG(balanceOf) dup3 [ERC20]   // [address, value, selector, user, value]
+    CALL_FUNCTION_WITH_VALUE(0x01)              // [success, value]
+    LAST_RETURN_WORD() swap2 pop pop            // [word]
+}
+
+#define test MOCK_CALLS_LAST_SHOULD_PERSIST() = {
+    // vm.mockCalls(mockErc20, data, [abi.encode(2 ether), abi.encode(7.219 ether)])
+    [ETHER_7_219] 0x20 [TWO_ETHER] 0x20 0x80 0x40 0x02   // bytes[]: length, offsets, elements
+    BALANCE_OF_DATA()                                     // bytes: length, words
+    0xc0 0x60 [ERC20]
+    VM_MOCK_CALLS_ADDRESS_BYTES_BYTES_ARRAY(0x0d, 0x00)
+
+    0x00 CALL_BALANCE_OF() [TWO_ETHER] ASSERT_EQ()
+    0x00 CALL_BALANCE_OF() [ETHER_7_219] ASSERT_EQ()
+    0x00 CALL_BALANCE_OF() [ETHER_7_219] ASSERT_EQ()      // the last return data persists
+}
+
+#define test MOCK_CALLS_WITH_VALUE() = {
+    [THREE_ETHER] address VM_DEAL(0x00)
+
+    // vm.mockCalls(mockErc20, 1 ether, data, [abi.encode(2 ether), abi.encode(1 ether), abi.encode(6.423 ether)])
+    [ETHER_6_423] 0x20 [ONE_ETHER] 0x20 [TWO_ETHER] 0x20 0xe0 0xa0 0x60 0x03
+    BALANCE_OF_DATA()
+    0xe0 0x80 [ONE_ETHER] [ERC20]
+    VM_MOCK_CALLS_ADDRESS_UINT256_BYTES_BYTES_ARRAY(0x11, 0x00)
+
+    [ONE_ETHER] CALL_BALANCE_OF() [TWO_ETHER] ASSERT_EQ()
+    [ERC20] balance [ONE_ETHER] ASSERT_EQ()
+    [ONE_ETHER] CALL_BALANCE_OF() [ONE_ETHER] ASSERT_EQ()
+    [ERC20] balance [TWO_ETHER] ASSERT_EQ()
+    [ONE_ETHER] CALL_BALANCE_OF() [ETHER_6_423] ASSERT_EQ()
+    [ERC20] balance [THREE_ETHER] ASSERT_EQ()
+}
+
+#define test MOCK_CALLS() = {
+    // vm.mockCalls(mockErc20, data, [abi.encode(2 ether), abi.encode(1 ether), abi.encode(6.423 ether)])
+    [ETHER_6_423] 0x20 [ONE_ETHER] 0x20 [TWO_ETHER] 0x20 0xe0 0xa0 0x60 0x03
+    BALANCE_OF_DATA()
+    0xc0 0x60 [ERC20]
+    VM_MOCK_CALLS_ADDRESS_BYTES_BYTES_ARRAY(0x10, 0x00)
+
+    0x00 CALL_BALANCE_OF() [TWO_ETHER] ASSERT_EQ()
+    0x00 CALL_BALANCE_OF() [ONE_ETHER] ASSERT_EQ()
+    0x00 CALL_BALANCE_OF() [ETHER_6_423] ASSERT_EQ()
+}

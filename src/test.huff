@@ -1,0 +1,216 @@
+#include "vm.huff"
+
+// The helpers build their calls in free memory, from `msize`, so they never overwrite memory a test
+// uses. Arguments are taken from the stack with the first argument on top, as in the `VM_*` macros,
+// so `a b ASSERT_LT()` checks b < a, like `a b lt`.
+
+/* ── Calls ── */
+
+/// Consumes [address, value, selector, word_1, ..., word_n], calls the address with the selector and
+/// the words as calldata and the value in wei, and pushes the success flag. The selector may be
+/// pushed by `__FUNC_SIG` or `__ERROR`. `LAST_RETURN_WORD` reads the return data.
+#define macro CALL_FUNCTION_WITH_VALUE(words) = takes(0) returns(1) {
+    _WRITE_CALL(<words>)                // [inSize, memory]
+    0x00 0x00 swap2                    // [inSize, retOffset, retSize, memory]
+    dup4 0x40 add                      // [inOffset, inSize, retOffset, retSize, memory]
+    dup5 0x20 add mload                // [value, ...]
+    dup6 mload                         // [address, value, ...]
+    gas call                           // [success, memory]
+    swap1 pop                          // [success]
+}
+
+/// Consumes [address, selector, word_1, ..., word_n], calls the address with the selector and the
+/// words as calldata, and pushes the success flag. `LAST_RETURN_WORD` reads the return data.
+#define macro CALL_FUNCTION(words) = takes(0) returns(1) {
+    0x00 swap1                         // [address, value, selector, word_1, ...]
+    CALL_FUNCTION_WITH_VALUE(<words>)
+}
+
+/// Consumes [address, selector, word_1, ..., word_n], calls the address without changing state,
+/// and pushes the first word it returns. A failed call reverts with its error.
+#define macro STATICCALL_FUNCTION(words) = takes(0) returns(1) {
+    0x00 swap1                         // [address, value, selector, word_1, ...]
+    _WRITE_CALL(<words>)                // [inSize, memory]
+    // Returns into the zero value slot, so a shorter return is padded with zeros
+    0x20 dup3 0x20 add dup3            // [inSize, memory + 32, 0x20, inSize, memory]
+    dup5 0x40 add                      // [inOffset, inSize, retOffset, retSize, inSize, memory]
+    dup6 mload                         // [address, ...]
+    gas staticcall                     // [success, inSize, memory]
+    swap1 pop                          // [success, memory]
+    REQUIRE_SUCCESS()                  // [memory]
+    0x20 add mload                     // [word]
+}
+
+/// Consumes [success] and reverts with the return data of the last call when it is zero
+#define macro REQUIRE_SUCCESS() = takes(1) returns(0) {
+    call_succeeded jumpi
+    returndatasize 0x00 0x00 returndatacopy
+    returndatasize 0x00 revert
+
+    call_succeeded:
+}
+
+/// Pushes the first word the last call returned, padded with zeros when it returned less. Read it
+/// before the next call, which includes an assertion, as that replaces the return data.
+#define macro LAST_RETURN_WORD() = takes(0) returns(1) {
+    msize                              // [pointer], to a word that is still zero
+    returndatasize 0x20                // [32, returned, pointer]
+    dup2 dup2 lt                       // [32 < returned, 32, returned, pointer]
+    swap2 dup1 swap2 sub               // [32 - returned, returned, 32 < returned, pointer]
+    dup3 mul add                       // [min(returned, 32), 32 < returned, pointer]
+    swap1 pop                          // [size, pointer]
+    0x00 dup3 returndatacopy           // [pointer]
+    mload                              // [word]
+}
+
+/// Consumes [offset, size] and calls a cheatcode with the `size` bytes of calldata at `offset`: its
+/// selector and ABI-encoded arguments. For arguments of a size known only at run time, such as a
+/// dynamic value an earlier cheatcode returned. A failed cheatcode reverts with its error; read the
+/// result with `returndatacopy` or `LAST_RETURN_WORD`.
+#define macro CALL_CHEATCODE_FROM_MEMORY() = takes(2) returns(0) {
+    0x00 0x00 dup4 dup4                // [offset, size, retOffset, retSize, offset, size]
+    0x00 [VM_ADDRESS] gas call         // [success, offset, size]
+    swap2 pop pop                      // [success]
+    REQUIRE_SUCCESS()
+}
+
+/* ── Expectations ── */
+
+/// Consumes [error, address, selector, word_1, ..., word_n], expects the call to revert with the
+/// error selector, as `vm.expectRevert(bytes4)`, makes the call and fails the test unless it reverted
+/// that way. The error may be pushed by `__ERROR` or `__FUNC_SIG`.
+#define macro EXPECT_REVERT_CALL(words) = takes(0) returns(0) {
+    dup1 0x0100000000 gt 0xe0 mul shl  // left-align an error pushed by __FUNC_SIG
+    __FUNC_SIG("expectRevert(bytes4)") _CALL_CHEATCODE(0x01)
+    // A call that does not revert that way fails with Foundry's reason, which fails the test
+    CALL_FUNCTION(<words>) REQUIRE_SUCCESS()
+}
+
+/// Consumes [success, length, chunk_1, ..., chunk_n] and fails the test unless the last call failed
+/// with `CheatcodeError(string)`, the error of a failed cheatcode, carrying the `length` bytes of the
+/// chunks as its message. A message is pushed as 32-byte chunks, last chunk first, then its length,
+/// before the call that pushes the success flag.
+#define macro EXPECT_CHEATCODE_ERROR(chunks) = takes(0) returns(0) {
+    msize                              // [memory, success, length, chunk_1, ...]
+    swap1 dup2 mstore                  // [memory, length, chunk_1, ...]       success at memory
+    swap1 dup2 0x20 add mstore         // [memory, chunk_1, ...]               length at memory + 32
+    dup1 0x40 add                      // [pointer, memory, chunk_1, ...]      message from memory + 64
+    for (i in 0..<chunks>) {
+        swap2 dup3 mstore              // [memory, pointer, chunk_2, ...]
+        swap1 0x20 add                 // [pointer + 32, memory, chunk_2, ...]
+    }
+    returndatasize 0x00 dup3 returndatacopy  // the revert data after the message, before the next call
+
+    dup2 mload ASSERT_FALSE()          // the call failed
+    __FUNC_SIG("CheatcodeError(string)") dup2 mload 0xe0 shr ASSERT_EQ()
+    dup1 0x24 add mload                // [actual length, revert data, memory]
+    dup2 0x44 add sha3                 // [actual hash, revert data, memory]
+    dup3 0x20 add mload                // [expected length, actual hash, revert data, memory]
+    dup4 0x40 add sha3                 // [expected hash, actual hash, revert data, memory]
+    ASSERT_EQ_BYTES32()
+    pop pop
+}
+
+/* ── Assertions ── */
+
+/// Consumes [left, right] and fails the test unless the two words are equal
+#define macro ASSERT_EQ() = takes(2) returns(0) {
+    __FUNC_SIG("assertEq(uint256,uint256)") _CALL_CHEATCODE(0x02)
+}
+
+/// Consumes [left, right] and fails the test if the two words are equal
+#define macro ASSERT_NOT_EQ() = takes(2) returns(0) {
+    __FUNC_SIG("assertNotEq(uint256,uint256)") _CALL_CHEATCODE(0x02)
+}
+
+/// Consumes [left, right] and fails the test unless the two addresses are equal
+#define macro ASSERT_EQ_ADDRESS() = takes(2) returns(0) {
+    __FUNC_SIG("assertEq(address,address)") _CALL_CHEATCODE(0x02)
+}
+
+/// Consumes [left, right] and fails the test unless the two bytes32 values are equal
+#define macro ASSERT_EQ_BYTES32() = takes(2) returns(0) {
+    __FUNC_SIG("assertEq(bytes32,bytes32)") _CALL_CHEATCODE(0x02)
+}
+
+/// Consumes [left, right] and fails the test unless the two int256 values are equal
+#define macro ASSERT_EQ_INT() = takes(2) returns(0) {
+    __FUNC_SIG("assertEq(int256,int256)") _CALL_CHEATCODE(0x02)
+}
+
+/// Consumes [left, right] and fails the test unless left < right, like `lt`
+#define macro ASSERT_LT() = takes(2) returns(0) {
+    __FUNC_SIG("assertLt(uint256,uint256)") _CALL_CHEATCODE(0x02)
+}
+
+/// Consumes [left, right] and fails the test unless left <= right
+#define macro ASSERT_LE() = takes(2) returns(0) {
+    __FUNC_SIG("assertLe(uint256,uint256)") _CALL_CHEATCODE(0x02)
+}
+
+/// Consumes [left, right] and fails the test unless left > right, like `gt`
+#define macro ASSERT_GT() = takes(2) returns(0) {
+    __FUNC_SIG("assertGt(uint256,uint256)") _CALL_CHEATCODE(0x02)
+}
+
+/// Consumes [left, right] and fails the test unless left >= right
+#define macro ASSERT_GE() = takes(2) returns(0) {
+    __FUNC_SIG("assertGe(uint256,uint256)") _CALL_CHEATCODE(0x02)
+}
+
+/// Consumes [left, right] and fails the test unless left < right as signed values, like `slt`
+#define macro ASSERT_LT_INT() = takes(2) returns(0) {
+    __FUNC_SIG("assertLt(int256,int256)") _CALL_CHEATCODE(0x02)
+}
+
+/// Consumes [left, right] and fails the test unless left <= right as signed values
+#define macro ASSERT_LE_INT() = takes(2) returns(0) {
+    __FUNC_SIG("assertLe(int256,int256)") _CALL_CHEATCODE(0x02)
+}
+
+/// Consumes [left, right] and fails the test unless left > right as signed values, like `sgt`
+#define macro ASSERT_GT_INT() = takes(2) returns(0) {
+    __FUNC_SIG("assertGt(int256,int256)") _CALL_CHEATCODE(0x02)
+}
+
+/// Consumes [left, right] and fails the test unless left >= right as signed values
+#define macro ASSERT_GE_INT() = takes(2) returns(0) {
+    __FUNC_SIG("assertGe(int256,int256)") _CALL_CHEATCODE(0x02)
+}
+
+/// Consumes [condition] and fails the test unless it is true
+#define macro ASSERT_TRUE() = takes(1) returns(0) {
+    __FUNC_SIG("assertTrue(bool)") _CALL_CHEATCODE(0x01)
+}
+
+/// Consumes [condition] and fails the test unless it is false
+#define macro ASSERT_FALSE() = takes(1) returns(0) {
+    __FUNC_SIG("assertFalse(bool)") _CALL_CHEATCODE(0x01)
+}
+
+/* ── Internals ── */
+
+/// Consumes [selector, word_1, ..., word_n] and calls the cheatcode in free memory. A failed
+/// cheatcode, such as a failed assertion, reverts with its error.
+#define macro _CALL_CHEATCODE(words) = takes(0) returns(0) {
+    0x00 [VM_ADDRESS]                  // [address, value, selector, word_1, ...]
+    CALL_FUNCTION_WITH_VALUE(<words>)
+    REQUIRE_SUCCESS()
+}
+
+/// Consumes [address, value, selector, word_1, ..., word_n] and writes them to free memory: the
+/// address, the value, then the calldata. Pushes the calldata size and where the address is.
+#define macro _WRITE_CALL(words) = takes(0) returns(2) {
+    msize                              // [memory, address, value, selector, word_1, ...]
+    swap1 dup2 mstore                  // [memory, value, selector, word_1, ...]
+    swap1 dup2 0x20 add mstore         // [memory, selector, word_1, ...]
+    swap1                              // [selector, memory, word_1, ...]
+    dup1 0x0100000000 gt 0xe0 mul shl  // left-align a selector pushed by __FUNC_SIG
+    dup2 0x40 add mstore               // [memory, word_1, ...]
+    dup1 0x44 add                      // [pointer, memory, word_1, ...]
+    for (i in 0..<words>) {
+        swap2 dup3 mstore              // [memory, pointer, word_2, ...]
+        swap1 0x20 add                 // [pointer + 32, memory, word_2, ...]
+    }
+    dup2 0x40 add swap1 sub            // [inSize, memory]
+}

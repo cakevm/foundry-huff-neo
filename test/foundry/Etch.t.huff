@@ -1,0 +1,26 @@
+// Ported from Foundry's testdata/default/cheats/Etch.t.sol (Foundry v1.8.6, MIT OR Apache-2.0)
+// Skipped: none. vm._expectCheatcodeRevert is not in src/vm.huff, so it is called directly.
+
+#include "../../src/test.huff"
+
+#define constant TARGET = 0x6be3f3                     // address(7070707)
+
+#define test ETCH() = {
+    // vm.etch(target, hex"1010"): the address, the offset, length and data of the code
+    __RIGHTPAD(0x1010) 0x02 0x40 [TARGET] VM_ETCH(0x04, 0x00)
+
+    // assertEq(string(code), string(target.code))
+    0x02 [TARGET] extcodesize ASSERT_EQ()
+    0x20 0x00 0x00 [TARGET] extcodecopy
+    __RIGHTPAD(0x1010) 0x00 mload ASSERT_EQ_BYTES32()
+}
+
+#define test ETCH_NOT_AVAILABLE_ON_PRECOMPILES() = {
+    // vm._expectCheatcodeRevert("cannot use precompile 0x0000000000000000000000000000000000000001 as an argument")
+    0x20617320616e20617267756d656e740000000000000000000000000000000000
+    0x3030303030303030303030303030303030303030303030303030303030303031
+    0x63616e6e6f742075736520707265636f6d70696c652030783030303030303030
+    0x4f 0x20 __FUNC_SIG("_expectCheatcodeRevert(bytes)") [VM_ADDRESS] CALL_FUNCTION(0x05) REQUIRE_SUCCESS()
+
+    __RIGHTPAD(0x1010) 0x02 0x40 0x01 VM_ETCH(0x04, 0x00)  // vm.etch(address(1), hex"1010")
+}

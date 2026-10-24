@@ -1,0 +1,71 @@
+// Ported from Foundry's testdata (Foundry v1.8.6, MIT OR Apache-2.0)
+// Huff version of the `BContract` contract in Foundry's testdata/default/cheats/ExpectRevert.t.sol,
+// with its CContract at 0x3003.
+// Runtime bytecode for ExpectRevert.t.huff, etched at 0x3002:
+// `hnc test/foundry/fixtures/ExpectRevertBContract.huff -r`
+
+#define function callAndRevert() pure returns ()
+#define function callAndRevertInCContract() nonpayable returns ()
+#define function createDContract() nonpayable returns ()
+#define function createDContractThroughCContract() nonpayable returns ()
+#define function doNotRevert() nonpayable returns ()
+
+
+// The creation bytecode of ExpectRevertDContract.huff
+#define table DCONTRACT_INITCODE {
+    0x6308c379a05f52602060205260156040527f52657665727465642062792044436f6e747261637400000000000000000000006060526064601cfd60008060433d393df3
+}
+
+/// Calls `target` with the selector and reverts with its error when it reverts
+#define macro CALL_OR_BUBBLE(target, selector) = takes(0) returns(0) {
+    <selector> 0xe0 shl 0x00 mstore
+    0x00 0x00 0x04 0x00 0x00 <target> gas call
+    succeeded jumpi
+    returndatasize 0x00 0x00 returndatacopy
+    returndatasize 0x00 revert
+    succeeded:
+}
+
+#define macro MAIN() = takes(0) returns(0) {
+    0x00 calldataload 0xe0 shr
+    dup1 __FUNC_SIG(callAndRevert) eq call_and_revert jumpi
+    dup1 __FUNC_SIG(callAndRevertInCContract) eq call_and_revert_in_c jumpi
+    dup1 __FUNC_SIG(createDContract) eq create_d_contract jumpi
+    dup1 __FUNC_SIG(createDContractThroughCContract) eq create_d_contract_through_c jumpi
+    dup1 __FUNC_SIG(doNotRevert) eq do_not_revert jumpi
+    0x00 0x00 revert
+
+    call_and_revert:
+        // require(1 > 2, "Reverted by BContract")
+        0x08c379a0 0x00 mstore
+        0x20 0x20 mstore
+        0x15 0x40 mstore
+        __RIGHTPAD(__BYTES("Reverted by BContract")) 0x60 mstore
+        0x64 0x1c revert
+
+    call_and_revert_in_c:
+        CALL_OR_BUBBLE(address, __FUNC_SIG(doNotRevert))
+        CALL_OR_BUBBLE(0x3003, __FUNC_SIG(doNotRevert))
+        CALL_OR_BUBBLE(0x3003, __FUNC_SIG(callAndRevert))
+        stop
+
+    create_d_contract:
+        CALL_OR_BUBBLE(address, __FUNC_SIG(doNotRevert))
+        CALL_OR_BUBBLE(0x3003, __FUNC_SIG(doNotRevert))
+        __tablesize(DCONTRACT_INITCODE) __tablestart(DCONTRACT_INITCODE) 0x00 codecopy
+        __tablesize(DCONTRACT_INITCODE) 0x00 0x00 create
+        created jumpi
+        returndatasize 0x00 0x00 returndatacopy
+        returndatasize 0x00 revert
+        created:
+        stop
+
+    create_d_contract_through_c:
+        CALL_OR_BUBBLE(address, __FUNC_SIG(doNotRevert))
+        CALL_OR_BUBBLE(0x3003, __FUNC_SIG(doNotRevert))
+        CALL_OR_BUBBLE(0x3003, __FUNC_SIG("createDContract()"))
+        stop
+
+    do_not_revert:
+        stop
+}

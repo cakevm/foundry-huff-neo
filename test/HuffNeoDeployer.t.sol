@@ -38,7 +38,8 @@ contract HuffNeoDeployerTest is Test {
     function testChaining() public {
         vm.recordLogs();
         IConstructor chained = IConstructor(
-            HuffNeoDeployer.config().with_args(bytes.concat(abi.encode(address(0x420)), abi.encode(uint256(0x420))))
+            HuffNeoDeployer.config()
+                .with_args(bytes.concat(abi.encode(address(0x420)), abi.encode(uint256(0x420))))
                 .deploy("test/contracts/Constructor.huff")
         );
 
@@ -101,18 +102,24 @@ contract HuffNeoDeployerTest is Test {
     function testConstantOverride() public {
         // Test address constant
         address a = 0xDeaDbeefdEAdbeefdEadbEEFdeadbeEFdEaDbeeF;
-        address deployed = HuffNeoDeployer.config().with_addr_constant("a", a).with_constant("b", "0x420")
+        address deployed = HuffNeoDeployer.config()
+            .with_addr_constant("a", a)
+            .with_constant("b", "0x420")
             .deploy("test/contracts/ConstOverride.huff");
         assertEq(getCode(deployed), hex"73DeaDbeefdEAdbeefdEadbEEFdeadbeEFdEaDbeeF610420");
 
         // Test uint constant
-        address deployed_2 = HuffNeoDeployer.config().with_uint_constant("a", 32).with_constant("b", "0x420")
+        address deployed_2 = HuffNeoDeployer.config()
+            .with_uint_constant("a", 32)
+            .with_constant("b", "0x420")
             .deploy("test/contracts/ConstOverride.huff");
         assertEq(getCode(deployed_2), hex"6020610420");
 
         // Test bytes32 constant
-        address deployed_3 = HuffNeoDeployer.config().with_bytes32_constant("a", bytes32(hex"01"))
-            .with_constant("b", "0x420").deploy("test/contracts/ConstOverride.huff");
+        address deployed_3 = HuffNeoDeployer.config()
+            .with_bytes32_constant("a", bytes32(hex"01"))
+            .with_constant("b", "0x420")
+            .deploy("test/contracts/ConstOverride.huff");
         assertEq(getCode(deployed_3), hex"7f0100000000000000000000000000000000000000000000000000000000000000610420");
 
         // Keep default "a" value and assign "b", which is unassigned in "ConstOverride.huff"
@@ -124,22 +131,29 @@ contract HuffNeoDeployerTest is Test {
     function testConstantOverride_Create2() public {
         // Test address constant
         address a = 0xDeaDbeefdEAdbeefdEadbEEFdeadbeEFdEaDbeeF;
-        address deployed = HuffNeoDeployer.config_with_create_2(1).with_addr_constant("a", a)
-            .with_constant("b", "0x420").deploy("test/contracts/ConstOverride.huff");
+        address deployed = HuffNeoDeployer.config_with_create_2(1)
+            .with_addr_constant("a", a)
+            .with_constant("b", "0x420")
+            .deploy("test/contracts/ConstOverride.huff");
         assertEq(getCode(deployed), hex"73DeaDbeefdEAdbeefdEadbEEFdeadbeEFdEaDbeeF610420");
 
         // Test uint constant
-        address deployed_2 = HuffNeoDeployer.config_with_create_2(2).with_uint_constant("a", 32)
-            .with_constant("b", "0x420").deploy("test/contracts/ConstOverride.huff");
+        address deployed_2 = HuffNeoDeployer.config_with_create_2(2)
+            .with_uint_constant("a", 32)
+            .with_constant("b", "0x420")
+            .deploy("test/contracts/ConstOverride.huff");
         assertEq(getCode(deployed_2), hex"6020610420");
 
         // Test bytes32 constant
-        address deployed_3 = HuffNeoDeployer.config_with_create_2(3).with_bytes32_constant("a", bytes32(hex"01"))
-            .with_constant("b", "0x420").deploy("test/contracts/ConstOverride.huff");
+        address deployed_3 = HuffNeoDeployer.config_with_create_2(3)
+            .with_bytes32_constant("a", bytes32(hex"01"))
+            .with_constant("b", "0x420")
+            .deploy("test/contracts/ConstOverride.huff");
         assertEq(getCode(deployed_3), hex"7f0100000000000000000000000000000000000000000000000000000000000000610420");
 
         // Keep default "a" value and assign "b", which is unassigned in "ConstOverride.huff"
-        address deployed_4 = HuffNeoDeployer.config_with_create_2(4).with_constant("b", "0x420")
+        address deployed_4 = HuffNeoDeployer.config_with_create_2(4)
+            .with_constant("b", "0x420")
             .deploy("test/contracts/ConstOverride.huff");
         assertEq(getCode(deployed_4), hex"6001610420");
     }

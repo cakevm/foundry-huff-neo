@@ -1,0 +1,18 @@
+// Ported from Foundry's testdata/default/cheats/Deal.t.sol (Foundry v1.8.6, MIT OR Apache-2.0)
+// Skipped: none. hnc test does not fuzz, so testDeal runs with a fixed odd amount.
+
+#include "../../src/test.huff"
+
+#define constant AMOUNT = 0x0de0b6b3a7640001          // 1 ether + 1 wei
+
+#define test DEAL() = {
+    0x00 0x0a balance ASSERT_EQ()                      // assertEq(address(10).balance, 0)
+
+    // Give half the amount
+    [AMOUNT] 0x01 shr 0x0a VM_DEAL(0x00)               // vm.deal(address(10), amount / 2)
+    [AMOUNT] 0x01 shr 0x0a balance ASSERT_EQ()
+
+    // Give the entire amount to check that deal is not additive
+    [AMOUNT] 0x0a VM_DEAL(0x00)                        // vm.deal(address(10), amount)
+    [AMOUNT] 0x0a balance ASSERT_EQ()
+}

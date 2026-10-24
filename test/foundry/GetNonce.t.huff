@@ -1,0 +1,12 @@
+// Ported from Foundry's testdata/default/cheats/GetNonce.t.sol (Foundry v1.8.6, MIT OR Apache-2.0)
+// Skipped: none. `new Foo()` deploys an empty contract with `create`.
+
+#include "../../src/test.huff"
+
+#define test GET_NONCE() = {
+    address VM_GET_NONCE(0x00)                         // [nonce1]
+    0x00 0x00 0x00 create pop                          // new Foo()
+    0x00 0x00 0x00 create pop                          // new Foo()
+    0x02 add                                           // [nonce1 + 2]
+    address VM_GET_NONCE(0x00) ASSERT_EQ()             // assertEq(nonce1 + 2, vm.getNonce(address(this)))
+}

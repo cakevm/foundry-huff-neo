@@ -3,8 +3,11 @@ src = 'src'
 out = 'out'
 libs = ['lib']
 ffi = true
-solc_version = '0.8.33'
+solc_version = '0.8.38'
 evm_version = 'osaka'
 
 [fuzz]
 runs = 2000
+
+[rpc_endpoints]
+mainnet = "${MAINNET_HTTP}"

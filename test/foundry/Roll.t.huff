@@ -1,0 +1,31 @@
+// Ported from Foundry's testdata/default/cheats/Roll.t.sol (Foundry v1.8.6, MIT OR Apache-2.0)
+// Skipped: none. hnc test does not fuzz, so testRollFuzzed runs with the largest uint32 jump.
+
+#include "../../src/test.huff"
+
+#define test ROLL() = {
+    0x0a VM_ROLL(0x00)                                 // vm.roll(10)
+    0x0a number ASSERT_EQ()                            // assertEq(block.number, 10)
+}
+
+#define test ROLL_FUZZED() = {
+    number                                             // [pre]
+    0xffffffff number add VM_ROLL(0x00)                // vm.roll(block.number + jump)
+    0xffffffff add                                     // [pre + jump]
+    number ASSERT_EQ()
+}
+
+#define test ROLL_HASH() = {
+    // assertEq(blockhash(block.number), 0x0)
+    0x00 number blockhash ASSERT_EQ_BYTES32()
+
+    0x05 VM_ROLL(0x00)                                 // vm.roll(5)
+    0x05 blockhash                                     // [hash]
+    0x00 0x04 blockhash ASSERT_NOT_EQ()                // assertTrue(blockhash(4) != 0x0)
+
+    0x0a VM_ROLL(0x00)                                 // vm.roll(10)
+    0x0a blockhash 0x05 blockhash ASSERT_NOT_EQ()      // assertTrue(blockhash(5) != blockhash(10))
+
+    0x05 VM_ROLL(0x00)                                 // vm.roll(5)
+    0x05 blockhash ASSERT_EQ_BYTES32()                 // assertEq(blockhash(5), hash)
+}

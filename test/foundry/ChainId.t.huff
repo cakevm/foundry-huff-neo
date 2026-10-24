@@ -1,0 +1,9 @@
+// Ported from Foundry's testdata/default/cheats/ChainId.t.sol (Foundry v1.8.6, MIT OR Apache-2.0)
+// Skipped: none.
+
+#include "../../src/test.huff"
+
+#define test CHAIN_ID() = {
+    0x63 VM_CHAIN_ID(0x00)                             // vm.chainId(99)
+    chainid 0x63 ASSERT_EQ()                           // assertEq(99, block.chainid)
+}

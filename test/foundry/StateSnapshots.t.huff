@@ -1,0 +1,216 @@
+// Ported from Foundry's testdata/default/cheats/StateSnapshots.t.sol (Foundry v1.8.6, MIT OR Apache-2.0)
+// Skipped: StateSnapshotDeleteFromSetUpTest (all three tests), as they need a snapshot taken in setUp
+// and hnc tests have no setUp phase; StateSnapshotIsolationTest, as it needs `isolate = true`, which
+// cannot be set for a single hnc test.
+// setUp's `store.slot0 = 10; store.slot1 = 20` is the `store` decorators. `this.restore(id)` calls the
+// test itself: a call with calldata runs RESTORE, while the test transaction itself has none.
+
+#include "../../src/test.huff"
+
+#define constant SLOT0 = 0x00
+#define constant SLOT1 = 0x01
+
+/// Writes store.slot0 = 300 and store.slot1 = 400
+#define macro WRITE_STORE() = takes(0) returns(0) {
+    0x012c [SLOT0] sstore
+    0x0190 [SLOT1] sstore
+}
+
+/// Checks that store holds 10 and 20 again
+#define macro ASSERT_STORE_REVERTED() = takes(0) returns(0) {
+    0x0a [SLOT0] sload ASSERT_EQ()           // "snapshot revert for slot 0 unsuccessful"
+    0x14 [SLOT1] sload ASSERT_EQ()           // "snapshot revert for slot 1 unsuccessful"
+}
+
+/// Checks that store holds 300 and 400
+#define macro ASSERT_STORE_WRITTEN() = takes(0) returns(0) {
+    0x012c [SLOT0] sload ASSERT_EQ()
+    0x0190 [SLOT1] sload ASSERT_EQ()
+}
+
+#[store([SLOT0], 10), store([SLOT1], 20)]
+#define test STATE_SNAPSHOT() = {
+    VM_SNAPSHOT_STATE(0x00)                  // [snapshotId]
+    WRITE_STORE()
+    ASSERT_STORE_WRITTEN()
+
+    VM_REVERT_TO_STATE(0x00) pop
+    ASSERT_STORE_REVERTED()
+}
+
+#[store([SLOT0], 10), store([SLOT1], 20)]
+#define test STATE_SNAPSHOT_REVERT_DELETE() = {
+    VM_SNAPSHOT_STATE(0x00)                  // [snapshotId]
+    WRITE_STORE()
+    ASSERT_STORE_WRITTEN()
+
+    dup1 VM_REVERT_TO_STATE_AND_DELETE(0x00) pop
+    ASSERT_STORE_REVERTED()
+    // nothing to revert to anymore
+    VM_REVERT_TO_STATE(0x00) ASSERT_FALSE()
+}
+
+#[store([SLOT0], 10), store([SLOT1], 20)]
+#define test STATE_SNAPSHOT_DELETE() = {
+    VM_SNAPSHOT_STATE(0x00)                  // [snapshotId]
+    WRITE_STORE()
+
+    dup1 VM_DELETE_STATE_SNAPSHOT(0x00) pop
+    // nothing to revert to anymore
+    VM_REVERT_TO_STATE(0x00) ASSERT_FALSE()
+}
+
+#[store([SLOT0], 10), store([SLOT1], 20)]
+#define test STATE_SNAPSHOT_DELETE_ALL() = {
+    VM_SNAPSHOT_STATE(0x00)                  // [snapshotId]
+    WRITE_STORE()
+
+    VM_DELETE_STATE_SNAPSHOTS(0x00)
+    // nothing to revert to anymore
+    VM_REVERT_TO_STATE(0x00) ASSERT_FALSE()
+}
+
+#define test STATE_SNAPSHOTS_MANY() = {
+    0x00                                     // [c]
+    outer:
+        0x00                                 // [cc, c]
+        inner:
+            VM_SNAPSHOT_STATE(0x00)          // [snapshotId, cc, c]
+            dup1 VM_REVERT_TO_STATE_AND_DELETE(0x00) pop
+            VM_REVERT_TO_STATE(0x00) ASSERT_FALSE()
+            0x01 add                         // [cc + 1, c]
+            dup1 0x0a gt inner jumpi
+        pop
+        0x01 add                             // [c + 1]
+        dup1 0x0a gt outer jumpi
+    pop
+}
+
+// tests that snapshots can also revert changes to `block`
+#define test BLOCK_VALUES() = {
+    prevrandao timestamp number              // [num, time, prevrandao]
+
+    VM_SNAPSHOT_STATE(0x00)                  // [snapshotId, num, time, prevrandao]
+
+    0x0539 VM_WARP(0x00)
+    0x0539 timestamp ASSERT_EQ()
+
+    0x63 VM_ROLL(0x00)
+    0x63 number ASSERT_EQ()
+
+    0x7b VM_PREVRANDAO_UINT256(0x00)
+    0x7b prevrandao ASSERT_EQ()
+
+    VM_REVERT_TO_STATE(0x00) ASSERT_TRUE()   // [num, time, prevrandao]
+
+    number ASSERT_EQ()                       // "snapshot revert for block.number unsuccessful"
+    timestamp ASSERT_EQ()                    // "snapshot revert for block.timestamp unsuccessful"
+    prevrandao ASSERT_EQ()                   // "snapshot revert for block.prevrandao unsuccessful"
+}
+
+/* ── StateSnapshotNestedRevertTest ── */
+
+/// restore(uint256 snapshotId) returns (bool): reverts to the snapshot and returns the result
+#define macro RESTORE() = takes(0) returns(0) {
+    0x04 calldataload VM_REVERT_TO_STATE(0x00)
+    0x00 mstore 0x20 0x00 return
+}
+
+#define test REVERT_FROM_NESTED_CALL_KEEPS_CALL_DEPTH() = {
+    calldatasize restore jumpi
+
+    VM_SNAPSHOT_STATE(0x00)                  // [snapshotId]
+    0x02 [SLOT0] sstore                      // value = 2
+
+    // assertTrue(this.restore(snapshotId))
+    __FUNC_SIG("restore(uint256)") address CALL_FUNCTION(0x01)
+    LAST_RETURN_WORD() swap1 ASSERT_TRUE()
+    ASSERT_TRUE()
+
+    0x00 [SLOT0] sload ASSERT_EQ()
+    stop
+
+    restore:
+        RESTORE()
+}
+
+/* ── DeprecatedStateSnapshotTest ── */
+
+#[store([SLOT0], 10), store([SLOT1], 20)]
+#define test SNAPSHOT_STATE() = {
+    VM_SNAPSHOT(0x00)                        // [snapshotId]
+    WRITE_STORE()
+    ASSERT_STORE_WRITTEN()
+
+    VM_REVERT_TO(0x00) pop
+    ASSERT_STORE_REVERTED()
+}
+
+#[store([SLOT0], 10), store([SLOT1], 20)]
+#define test SNAPSHOT_STATE_REVERT_DELETE() = {
+    VM_SNAPSHOT(0x00)                        // [snapshotId]
+    WRITE_STORE()
+    ASSERT_STORE_WRITTEN()
+
+    dup1 VM_REVERT_TO_AND_DELETE(0x00) pop
+    ASSERT_STORE_REVERTED()
+    // nothing to revert to anymore
+    VM_REVERT_TO(0x00) ASSERT_FALSE()
+}
+
+#[store([SLOT0], 10), store([SLOT1], 20)]
+#define test SNAPSHOT_STATE_DELETE() = {
+    VM_SNAPSHOT(0x00)                        // [snapshotId]
+    WRITE_STORE()
+
+    dup1 VM_DELETE_SNAPSHOT(0x00) pop
+    // nothing to revert to anymore
+    VM_REVERT_TO(0x00) ASSERT_FALSE()
+}
+
+#[store([SLOT0], 10), store([SLOT1], 20)]
+#define test SNAPSHOT_STATE_DELETE_ALL() = {
+    VM_SNAPSHOT(0x00)                        // [snapshotId]
+    WRITE_STORE()
+
+    VM_DELETE_SNAPSHOTS(0x00)
+    // nothing to revert to anymore
+    VM_REVERT_TO(0x00) ASSERT_FALSE()
+}
+
+#define test SNAPSHOT_STATES_MANY() = {
+    0x00                                     // [c]
+    outer:
+        0x00                                 // [cc, c]
+        inner:
+            VM_SNAPSHOT(0x00)                // [snapshotId, cc, c]
+            dup1 VM_REVERT_TO_AND_DELETE(0x00) pop
+            VM_REVERT_TO(0x00) ASSERT_FALSE()
+            0x01 add                         // [cc + 1, c]
+            dup1 0x0a gt inner jumpi
+        pop
+        0x01 add                             // [c + 1]
+        dup1 0x0a gt outer jumpi
+    pop
+}
+
+#define test DEPRECATED_BLOCK_VALUES() = {
+    prevrandao timestamp number              // [num, time, prevrandao]
+
+    VM_SNAPSHOT(0x00)                        // [snapshotId, num, time, prevrandao]
+
+    0x0539 VM_WARP(0x00)
+    0x0539 timestamp ASSERT_EQ()
+
+    0x63 VM_ROLL(0x00)
+    0x63 number ASSERT_EQ()
+
+    0x7b VM_PREVRANDAO_UINT256(0x00)
+    0x7b prevrandao ASSERT_EQ()
+
+    VM_REVERT_TO(0x00) ASSERT_TRUE()         // [num, time, prevrandao]
+
+    number ASSERT_EQ()
+    timestamp ASSERT_EQ()
+    prevrandao ASSERT_EQ()
+}

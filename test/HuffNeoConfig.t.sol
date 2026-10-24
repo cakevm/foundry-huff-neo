@@ -96,8 +96,12 @@ contract HuffNeoConfigTest is Test {
     }
 
     function testChaining() public {
-        HuffConfig memory cfg = HuffNeoDeployer.config().with_deployer(address(0x1234)).with_value(1 ether)
-            .with_evm_version("shanghai").set_broadcast(true).with_constant("KEY", "0x123");
+        HuffConfig memory cfg = HuffNeoDeployer.config()
+            .with_deployer(address(0x1234))
+            .with_value(1 ether)
+            .with_evm_version("shanghai")
+            .set_broadcast(true)
+            .with_constant("KEY", "0x123");
 
         assertEq(cfg.deployer, address(0x1234));
         assertEq(cfg.value, 1 ether);

@@ -1,0 +1,75 @@
+// Tests a timelocked vault the way a Foundry test would, with each test running the vault's MAIN
+// as the test contract: decorators set up the call, cheatcodes change the world around it.
+
+#include "../src/test.huff"
+#include "contracts/Vault.huff"
+
+#define constant ALICE = 0xa11ce
+#define constant OWNER = 0x0b0b
+#define constant ORACLE = 0x0ac1e
+#define constant ONE_ETHER = 0x0de0b6b3a7640000
+#define constant T0 = 0x6553f100                 // 1700000000
+#define constant UNLOCK = 0x65554280             // T0 + 1 day
+
+// Storage slots of ALICE in the vault's balance and unlock mappings: `cast index address 0xa11ce 2`
+#define constant ALICE_BALANCE_SLOT = 0x533c587bffbb1637d85d51c2579f057bd7b064547450f2adf0221dd98ef613de
+#define constant ALICE_UNLOCK_SLOT = 0x3d5f08ca17424ce91ef6d6c19014cf2cfe6d08bfab17bdcb25acf796e78396c7
+
+// A deposit credits the caller, locks it for a day and emits Deposit
+#[calldata(__FUNC_SIG(deposit)), value(1000000000000000000), caller(0xa11ce), deal(caller, 1000000000000000000)]
+#[expect_storage([ALICE_BALANCE_SLOT], 1000000000000000000), expect_storage([ALICE_UNLOCK_SLOT], 1700086400)]
+#define test DEPOSIT_LOCKS_FOR_A_DAY() = {
+    [T0] VM_WARP(0x00)
+
+    // vm.expectEmit(); emit Deposit(ALICE, 1 ether)
+    VM_EXPECT_EMIT(0x00)
+    [ONE_ETHER] 0x00 mstore
+    [ALICE] __EVENT_HASH(Deposit) 0x20 0x00 log2
+
+    MAIN()
+}
+
+// A withdrawal before the unlock time reverts with Locked(unlockAt)
+#[calldata(__FUNC_SIG(withdraw), 1), caller(0xa11ce)]
+#[store([ALICE_BALANCE_SLOT], 1000000000000000000), store([ALICE_UNLOCK_SLOT], 1700086400)]
+#[expect_revert(__ERROR(Locked), 1700086400)]
+#define test WITHDRAW_IS_LOCKED_FOR_A_DAY() = {
+    [T0] VM_WARP(0x00)
+    MAIN()
+}
+
+// After the lock, a withdrawal pays the fee to the owner and the rest to the caller
+#[calldata(__FUNC_SIG(withdraw), 1000000000000000000), caller(0xa11ce), deal(caller, 0), deal(this, 1000000000000000000)]
+#[store([OWNER_SLOT], 0x0b0b), store([FEE_SLOT], 100)]
+#[store([ALICE_BALANCE_SLOT], 1000000000000000000), store([ALICE_UNLOCK_SLOT], 1700086400)]
+#[expect_balance(caller, 990000000000000000), expect_balance(0x0b0b, 10000000000000000)]
+#[expect_storage([ALICE_BALANCE_SLOT], 0)]
+#define test WITHDRAW_PAYS_THE_FEE() = {
+    [UNLOCK] VM_WARP(0x00)
+    MAIN()
+}
+
+// Only the owner can set the fee
+#[calldata(__FUNC_SIG(setFee), 100), caller(0xa11ce), store([OWNER_SLOT], 0x0b0b)]
+#[expect_revert(__ERROR(Unauthorized))]
+#define test STRANGER_CANNOT_SET_THE_FEE() = { MAIN() }
+
+// A quote asks the oracle, which is mocked: 2 ether at 2000 per ether quotes 4000
+#[calldata(__FUNC_SIG(quote), 2000000000000000000), store([ORACLE_SLOT], 0x0ac1e)]
+#[expect_return(4000)]
+#define test QUOTE_ASKS_THE_ORACLE() = {
+    // vm.mockCall(ORACLE, abi.encodeWithSignature("getPrice()"), abi.encode(2000))
+    0x07d0 0x20                              // return data: length, word
+    __FUNC_SIG(getPrice) 0xe0 shl 0x04       // calldata: length, word
+    0xa0 0x60 [ORACLE]                       // the address, then the offsets of the two values
+    VM_MOCK_CALL(0x07, 0x00)
+    MAIN()
+}
+
+// The fee cannot exceed 10%; the owner is set with a cheatcode instead of a decorator
+#[calldata(__FUNC_SIG(setFee), 1001), caller(0x0b0b)]
+#[expect_revert(__ERROR(FeeTooHigh))]
+#define test FEE_IS_CAPPED() = {
+    [OWNER] [OWNER_SLOT] address VM_STORE(0x00)  // vm.store(address(this), OWNER_SLOT, OWNER)
+    MAIN()
+}

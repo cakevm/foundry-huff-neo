@@ -9,6 +9,6 @@
     "fmt-check": "forge fmt --check"
   },
   "devDependencies": {
-    "solhint": "^6.0.3"
+    "solhint": "^6.2.5"
   }
 }

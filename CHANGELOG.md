@@ -4,6 +4,17 @@
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-10-24
+- Add Foundry's cheatcodes as `VM_*` macros for Huff tests in `src/vm.huff`, generated from forge-std's `Vm.sol`.
+  - Example: `0x6553f100 VM_WARP(0x00)` for `vm.warp(1700000000)`
+  - Script cheatcodes and cheatcodes that take Foundry's structs are not included.
+  - Requires `hnc test` from huff-neo 1.7.1 or later.
+- Add assertions and call helpers for Huff tests in `src/test.huff`, such as `ASSERT_EQ`, `CALL_FUNCTION`, `EXPECT_REVERT_CALL` and `EXPECT_CHEATCODE_ERROR`.
+  - Example: `0x6553f100 timestamp ASSERT_EQ()` for `assertEq(block.timestamp, 1700000000)`
+  - `CALL_CHEATCODE_FROM_MEMORY` calls a cheatcode with calldata whose size is only known at run time.
+  - See `test/vm.t.huff` and `test/vault.t.huff` for examples.
+- Update the README: document cheatcodes in Huff tests and use `deploy_with_args` in the constructor arguments example.
+
 ## [1.1.0] - 2026-01-02
 - **Breaking**: Refactored `HuffNeoConfig` from a contract to a library with `HuffConfig` struct
   - No more config contract deployed alongside your Huff contract

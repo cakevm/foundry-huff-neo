@@ -1,0 +1,62 @@
+// Ported from Foundry's testdata (Foundry v1.8.6, MIT OR Apache-2.0)
+// Foundry's `NestedPranker` and `NestedCreatePranker` helper contracts from Prank.t.sol, pranking
+// with the fixed sender 0xa11ce and origin 0xdeadbeef. completePrank calls the
+// PrankNestedVictim.huff contract at 0x2000 and returns what it saw before and after stopPrank.
+// createAs creates PrankConstructorVictim.huff from the creation code etched at 0x3000 and returns
+// what the new contract saw.
+// Runtime bytecode: hnc PrankNestedPranker.huff -r
+
+#define function incompletePrank() nonpayable returns ()
+#define function completePrank() nonpayable returns (bytes)
+#define function createAs(address) nonpayable returns (bytes)
+
+#define constant VM = 0x7109709ECfa91a80626fF3989D68f67F5b1DD12D
+#define constant NEW_SENDER = 0xa11ce
+#define constant NEW_ORIGIN = 0xdeadbeef
+#define constant VICTIM = 0x2000
+#define constant VICTIM_CREATION_CODE = 0x3000
+
+/// Consumes [success] and reverts with the return data of the last call when it is zero
+#define macro BUBBLE() = takes(1) returns(0) {
+    ok jumpi
+    returndatasize 0x00 0x00 returndatacopy
+    returndatasize 0x00 revert
+    ok:
+}
+
+#define macro MAIN() = takes(0) returns(0) {
+    0x00 calldataload 0xe0 shr
+    dup1 __FUNC_SIG(incompletePrank) eq incomplete_prank jumpi
+    dup1 __FUNC_SIG(completePrank) eq complete_prank jumpi
+    dup1 __FUNC_SIG(createAs) eq create_as jumpi
+    0x00 0x00 revert
+
+    // vm.startPrank(NEW_SENDER, NEW_ORIGIN)
+    incomplete_prank:
+        __FUNC_SIG("startPrank(address,address)") 0xe0 shl 0x00 mstore
+        [NEW_SENDER] 0x04 mstore
+        [NEW_ORIGIN] 0x24 mstore
+        0x00 0x00 0x44 0x00 0x00 [VM] gas call BUBBLE()
+        stop
+
+    // the victim's view while pranked, vm.stopPrank(), then the victim's view after it
+    complete_prank:
+        0x80 0x00 0x00 0x00 [VICTIM] gas staticcall BUBBLE()
+        __FUNC_SIG("stopPrank()") 0xe0 shl 0x100 mstore
+        0x00 0x00 0x04 0x100 0x00 [VM] gas call BUBBLE()
+        0x80 0x80 0x00 0x00 [VICTIM] gas staticcall BUBBLE()
+        0x100 0x00 return
+
+    // vm.prank(sender), then new ConstructorVictim()
+    create_as:
+        __FUNC_SIG("prank(address)") 0xe0 shl 0x00 mstore
+        0x04 calldataload 0x04 mstore
+        0x00 0x00 0x24 0x00 0x00 [VM] gas call BUBBLE()
+        [VICTIM_CREATION_CODE] extcodesize 0x00 0x00 [VICTIM_CREATION_CODE] extcodecopy
+        [VICTIM_CREATION_CODE] extcodesize 0x00 0x00 create
+        dup1 created jumpi
+        0x00 0x00 revert
+        created:
+        0x80 0x00 0x00 0x00 dup5 gas staticcall BUBBLE()
+        0x80 0x00 return
+}

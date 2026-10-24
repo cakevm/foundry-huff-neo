@@ -1,0 +1,27 @@
+// Ported from Foundry's testdata/default/cheats/Nonce.t.sol (Foundry v1.8.6, MIT OR Apache-2.0)
+// Skipped: none. NonceIsolatedTest sets `isolate`, which hnc only sets per run with `--isolate`; the test
+// passes with and without it.
+
+#include "../../src/test.huff"
+
+#define constant BOB = 0x0e                            // address(14)
+
+// Init code of Counter, whose runtime code increment()s slot 0 on any call
+//   6008 600a 5f 39 6008 5f f3    return the 8 bytes of runtime code after the init code
+//   5f 54 6001 01 5f 55 00        count += 1
+#define macro NEW_COUNTER() = takes(0) returns(1) {
+    __RIGHTPAD(0x6008600a5f3960085ff35f546001015f5500) 0x00 mstore
+    0x12 0x00 0x00 create                              // [counter]
+}
+
+#define test INCREMENT_NONCE() = {
+    [BOB] VM_START_PRANK(0x00)                         // vm.startPrank(bob)
+    NEW_COUNTER()                                      // [counter]
+    0x01 [BOB] VM_GET_NONCE(0x00) ASSERT_EQ()
+    __FUNC_SIG("increment()") dup2 CALL_FUNCTION(0x00) REQUIRE_SUCCESS()
+    0x02 [BOB] VM_GET_NONCE(0x00) ASSERT_EQ()
+    NEW_COUNTER() pop
+    0x03 [BOB] VM_GET_NONCE(0x00) ASSERT_EQ()
+    __FUNC_SIG("increment()") dup2 CALL_FUNCTION(0x00) REQUIRE_SUCCESS()
+    0x04 [BOB] VM_GET_NONCE(0x00) ASSERT_EQ()
+}

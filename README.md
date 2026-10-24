@@ -25,6 +25,8 @@ forge install cakevm/foundry-huff-neo
 
 ## Usage
 
+Deploy Huff contracts from Solidity tests. For tests written in Huff, see [Cheatcodes in Huff tests](#cheatcodes-in-huff-tests).
+
 Import the library:
 ```solidity
 import {HuffNeoDeployer} from "foundry-huff-neo/HuffNeoDeployer.sol";
@@ -40,6 +42,28 @@ Deploy with constructor arguments:
 address addr = HuffNeoDeployer
     .deploy_with_args("src/MyContract.huff", abi.encode(arg1, arg2));
 ```
+
+## Cheatcodes in Huff tests
+
+Huff tests can use [Foundry's cheatcodes](https://getfoundry.sh/reference/cheatcodes/overview) as `VM_*` macros, with assertions and call helpers such as `ASSERT_EQ` and `CALL_FUNCTION`. They need `hnc` 1.7.1 or later:
+```huff
+#include "foundry-huff-neo/test.huff"
+
+#define test WARP() = {
+    0x6553f100 VM_WARP(0x00)          // vm.warp(1700000000)
+    0x6553f100 timestamp ASSERT_EQ()  // assertEq(block.timestamp, 1700000000)
+}
+```
+
+```bash
+hnc test/MyContract.t.huff test
+```
+
+- Arguments come from the stack with the first argument on top, so `a b ASSERT_LT()` checks `b < a`, like `a b lt`.
+- `VM_*` macros take a `memoryOffset` to build their call in. The common overload of a cheatcode has the plain name, such as `VM_EXPECT_REVERT`, and the others add their parameter types, such as `VM_EXPECT_REVERT_BYTES4`.
+- A failed cheatcode or assertion stops the test with its message.
+
+See [`src/test.huff`](./src/test.huff) for the helpers, and [`test/vm.t.huff`](./test/vm.t.huff) and [`test/vault.t.huff`](./test/vault.t.huff) for examples.
 
 ## Deployment
 
@@ -60,7 +84,7 @@ forge script scripts/Deploy.s.sol --rpc-url <RPC_URL> --broadcast
 ```
 
 ## Acknowledgements
-This project is a hard-fork from [foundry-huff](https://github.com/huff-language/foundry-huff). Many thanks to all contributors and to the authors who maintained it for such a long period! Thanks to [Huff-Console](https://github.com/AmadiMichael/Huff-Console) for the inspiration for the logging.
+This project is a hard-fork from [foundry-huff](https://github.com/huff-language/foundry-huff). Many thanks to all contributors and to the authors who maintained it for such a long period! Thanks to [Huff-Console](https://github.com/AmadiMichael/Huff-Console) for the inspiration for the logging. Thanks to the [Foundry](https://github.com/foundry-rs/foundry) contributors: the cheatcode macros are generated from [forge-std](https://github.com/foundry-rs/forge-std)'s `Vm.sol`, and `test/foundry/` ports Foundry's cheatcode tests (MIT OR Apache-2.0).
 
 ## License
 This project is licensed under the [Apache 2.0 license](./LICENSE).

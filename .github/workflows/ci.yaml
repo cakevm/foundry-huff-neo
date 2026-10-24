@@ -3,7 +3,7 @@ name: CI
 on:
   push:
     branches: [main]
-  pull_request_target:
+  pull_request:
     branches: [main]
 
 jobs:
@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           submodules: recursive
 
@@ -26,7 +26,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           submodules: recursive
 
@@ -37,8 +37,10 @@ jobs:
     name: make test
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    env:
+      MAINNET_HTTP: ${{ secrets.MAINNET_HTTP }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           submodules: recursive
 
@@ -50,5 +52,16 @@ jobs:
         with:
           version: latest
 
+      - name: Check src/vm.huff is generated from Vm.sol
+        run: make vm-huff-check
+
       - name: Run Tests
         run: make test
+
+      - name: Run Huff Tests
+        run: make test-huff
+
+      # Runs only where the MAINNET_HTTP secret is available
+      - name: Run Huff Fork Tests
+        if: env.MAINNET_HTTP != ''
+        run: make test-huff-fork

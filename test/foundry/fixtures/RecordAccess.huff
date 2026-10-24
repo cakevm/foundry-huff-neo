@@ -1,0 +1,36 @@
+// Ported from Foundry's testdata (Foundry v1.8.6, MIT OR Apache-2.0)
+// RecordAccess and NestedRecordAccess of Foundry's testdata/default/cheats/Record.t.sol.
+// record() bumps slot 1, deploys a NestedRecordAccess, calls its record(), which bumps slot 2, and
+// returns its address. Compile the runtime code with `hnc test/foundry/fixtures/RecordAccess.huff -r`.
+
+#define function record() nonpayable returns (address)
+
+// NestedRecordAccess: initcode that returns the runtime `0x02 sload 0x01 add 0x02 sstore stop`
+//   600a  push1 10      runtime size
+//   80    dup1
+//   6009  push1 9       runtime offset in the initcode
+//   5f    push0
+//   39    codecopy
+//   5f    push0
+//   f3    return
+//   6002 54 6001 01 6002 55 00
+#define table NESTED_RECORD_ACCESS {
+    0x600a8060095f395ff360025460010160025500
+}
+
+#define macro MAIN() = takes(0) returns(0) {
+    0x01 sload 0x01 add 0x01 sstore          // sstore(1, add(sload(1), 1))
+
+    __tablesize(NESTED_RECORD_ACCESS) __tablestart(NESTED_RECORD_ACCESS) 0x00 codecopy
+    __tablesize(NESTED_RECORD_ACCESS) 0x00 0x00 create  // [inner]
+
+    // inner.record()
+    __FUNC_SIG(record) 0xe0 shl 0x00 mstore
+    0x00 0x00 0x04 0x00 0x00 dup6 gas call
+    iszero fail jumpi
+
+    0x00 mstore 0x20 0x00 return             // return inner
+
+    fail:
+        0x00 0x00 revert
+}
