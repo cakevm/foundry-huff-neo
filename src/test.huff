@@ -8,7 +8,7 @@
 
 /// Consumes [address, value, selector, word_1, ..., word_n], calls the address with the selector and
 /// the words as calldata and the value in wei, and pushes the success flag. The selector may be
-/// pushed as `__FUNC_SIG` or as `__ERROR` pushes it. `LAST_RETURN_WORD` reads the return data.
+/// pushed by `__FUNC_SIG` or `__ERROR`. `LAST_RETURN_WORD` reads the return data.
 #define macro CALL_FUNCTION_WITH_VALUE(words) = takes(0) returns(1) {
     _WRITE_CALL(<words>)                // [inSize, memory]
     0x00 0x00 swap2                    // [inSize, retOffset, retSize, memory]
@@ -78,7 +78,7 @@
 
 /// Consumes [error, address, selector, word_1, ..., word_n], expects the call to revert with the
 /// error selector, as `vm.expectRevert(bytes4)`, makes the call and fails the test unless it reverted
-/// that way. The error may be pushed as `__ERROR` or `__FUNC_SIG` pushes it.
+/// that way. The error may be pushed by `__ERROR` or `__FUNC_SIG`.
 #define macro EXPECT_REVERT_CALL(words) = takes(0) returns(0) {
     dup1 0x0100000000 gt 0xe0 mul shl  // left-align an error pushed by __FUNC_SIG
     __FUNC_SIG("expectRevert(bytes4)") _CALL_CHEATCODE(0x01)

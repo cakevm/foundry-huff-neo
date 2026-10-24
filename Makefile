@@ -2,6 +2,15 @@
 test:
 	forge test
 
+.PHONY: vm-huff
+vm-huff:
+	python3 scripts/build_vm_macros.py
+
+# Fails when src/vm.huff differs from what the generator makes of lib/forge-std
+.PHONY: vm-huff-check
+vm-huff-check: vm-huff
+	git diff --exit-code src/vm.huff
+
 .PHONY: test-huff
 test-huff:
 	@for file in test/*.t.huff test/foundry/*.t.huff; do hnc $$file test || exit 1; done

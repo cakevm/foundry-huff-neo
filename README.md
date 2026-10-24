@@ -25,6 +25,8 @@ forge install cakevm/foundry-huff-neo
 
 ## Usage
 
+Deploy Huff contracts from Solidity tests. For tests written in Huff, see [Cheatcodes in Huff tests](#cheatcodes-in-huff-tests).
+
 Import the library:
 ```solidity
 import {HuffNeoDeployer} from "foundry-huff-neo/HuffNeoDeployer.sol";
@@ -43,7 +45,7 @@ address addr = HuffNeoDeployer
 
 ## Cheatcodes in Huff tests
 
-`src/vm.huff` gives Huff tests every [Foundry cheatcode](https://getfoundry.sh/reference/cheatcodes/overview) as a macro, and `src/test.huff` adds assertions and calls on top. Run the tests with `hnc test` from huff-neo 1.7.1 or later, from the project root, where `hnc` finds `lib/foundry-huff-neo` without a remapping:
+`src/vm.huff` gives Huff tests [Foundry's cheatcodes](https://getfoundry.sh/reference/cheatcodes/overview) as macros, and `src/test.huff` adds assertions and calls on top. Run the tests with `hnc test` from huff-neo 1.7.1 or later, from the project root, where `#include "foundry-huff-neo/test.huff"` resolves to `lib/foundry-huff-neo` without a remapping:
 ```huff
 #include "foundry-huff-neo/test.huff"
 
@@ -72,7 +74,7 @@ hnc test/MyContract.t.huff test
 - The `test.huff` helpers use free memory, so they never overwrite memory a test uses.
 
 ### Helpers in `test.huff`
-- `ASSERT_EQ`, `ASSERT_NOT_EQ`, `ASSERT_LT`, `ASSERT_LE`, `ASSERT_GT`, `ASSERT_GE`, their signed `_INT` versions, `ASSERT_EQ_ADDRESS`, `ASSERT_EQ_BYTES32`, `ASSERT_TRUE` and `ASSERT_FALSE`.
+- `ASSERT_EQ`, `ASSERT_NOT_EQ`, `ASSERT_LT`, `ASSERT_LE`, `ASSERT_GT`, `ASSERT_GE`, the signed `ASSERT_EQ_INT`, `ASSERT_LT_INT`, `ASSERT_LE_INT`, `ASSERT_GT_INT` and `ASSERT_GE_INT`, `ASSERT_EQ_ADDRESS`, `ASSERT_EQ_BYTES32`, `ASSERT_TRUE` and `ASSERT_FALSE`.
 - `CALL_FUNCTION(words)`, `CALL_FUNCTION_WITH_VALUE(words)` and `STATICCALL_FUNCTION(words)` call a contract with a selector and argument words. `LAST_RETURN_WORD` reads the return data, before the next call or assertion replaces it.
 - `REQUIRE_SUCCESS` passes the revert of a failed call on, so the test fails with its reason.
 - `EXPECT_REVERT_CALL(words)` expects a call to revert with an error and fails the test with Foundry's reason unless it does.
@@ -83,7 +85,7 @@ A failed cheatcode or assertion reverts with its message and stops the test. Aft
 
 ### How Foundry reports failed expectations
 An expectation that is not met makes the call it applies to fail, and the test sees it in the success flag:
-- A failed `vm.expectRevert` fails the call with `CheatcodeError(string)`, such as "call did not revert as expected". `EXPECT_CHEATCODE_ERROR` checks it.
+- A failed `vm.expectRevert` fails the call with `CheatcodeError(string)`, such as "next call did not revert as expected". `EXPECT_CHEATCODE_ERROR` checks it.
 - A failed `vm.expectEmit` fails the call with the message as a plain ABI-encoded string, without a selector, such as "log != expected log". The expectation stays active, so the test also fails at its end unless a later call meets it.
 - An unmet `vm.expectCall`, or an emit that never happens, fails the test when it ends.
 
@@ -108,7 +110,7 @@ forge script scripts/Deploy.s.sol --rpc-url <RPC_URL> --broadcast
 ```
 
 ## Acknowledgements
-This project is a hard-fork from [foundry-huff](https://github.com/huff-language/foundry-huff). Many thanks to all contributors and to the authors who maintained it for such a long period! Thanks to [Huff-Console](https://github.com/AmadiMichael/Huff-Console) for the inspiration for the logging, and to the [Foundry](https://github.com/foundry-rs/foundry) contributors for [forge-std](https://github.com/foundry-rs/forge-std), whose `Vm.sol` the cheatcode macros are generated from, and for Foundry's cheatcode tests, which `test/foundry/` ports to Huff (MIT OR Apache-2.0).
+This project is a hard-fork from [foundry-huff](https://github.com/huff-language/foundry-huff). Many thanks to all contributors and to the authors who maintained it for such a long period! Thanks to [Huff-Console](https://github.com/AmadiMichael/Huff-Console) for the inspiration for the logging. Thanks to the [Foundry](https://github.com/foundry-rs/foundry) contributors for [forge-std](https://github.com/foundry-rs/forge-std), whose `Vm.sol` the cheatcode macros are generated from, and for the cheatcode tests that `test/foundry/` ports to Huff (MIT OR Apache-2.0).
 
 ## License
 This project is licensed under the [Apache 2.0 license](./LICENSE).

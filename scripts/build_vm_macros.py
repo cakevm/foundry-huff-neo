@@ -10,7 +10,6 @@ SKIPPED_SECTIONS = {"Scripting"}
 # The overload that keeps the plain name of an overloaded cheatcode, the one Solidity tests use most.
 # Other overloads get their parameter types as a suffix. A plain name listed here never changes its
 # meaning; any other plain name disappears, a compile error, when forge-std adds an overload to it.
-# The templates below are filled with `str.replace`, as Huff's braces would clash with `str.format`.
 DEFAULT_OVERLOADS = {
     "prank": "prank(address)",
     "startPrank": "startPrank(address)",
@@ -62,7 +61,8 @@ DEFAULT_OVERLOADS = {
     "skip": "skip(bool)",
 }
 
-template_static = """
+# The templates are filled with `str.replace`, as Huff's braces would clash with `str.format`
+TEMPLATE_STATIC = """
 {docs}
 /// Consumes {commentArguments} from the stack{returnComment}: vm.{signature}
 /// {memoryComment}
@@ -72,7 +72,7 @@ template_static = """
 }
 """
 
-template_variable = """
+TEMPLATE_VARIABLE = """
 {docs}
 /// Consumes `elements` ABI-encoded words of {commentArguments} from the stack{returnComment}: vm.{signature}
 /// Overwrites the calldata and the return data in memory from memoryOffset.
@@ -86,7 +86,7 @@ STATIC_TYPE = re.compile(r"^(u?int\d*|address|bool|bytes([1-9]|[12]\d|3[0-2]))$"
 ELEMENTARY_TYPE = re.compile(r"^(u?int\d*|address|bool|bytes\d*|string)(\[\d*\])*$")
 # Up to 16 bytes, a right-aligned value is always smaller than any nonzero left-aligned one
 SHORT_BYTES = re.compile(r"^bytes([1-9]|1[0-6])$")
-LONG_SHORT_BYTES = re.compile(r"^bytes(1[7-9]|2\d|3[01])$")
+AMBIGUOUS_BYTES = re.compile(r"^bytes(1[7-9]|2\d|3[01])$")
 
 
 def canonical(solidity_type):
@@ -170,7 +170,7 @@ def normalize_bytes_arguments(inputs):
     argument has its own head word in the ABI encoding too, at the same position from the top."""
     lines = []
     for position, solidity_type in enumerate(inputs):
-        assert not LONG_SHORT_BYTES.match(solidity_type), f"cannot tell the alignment of a {solidity_type} argument"
+        assert not AMBIGUOUS_BYTES.match(solidity_type), f"cannot tell the alignment of a {solidity_type} argument"
         short = SHORT_BYTES.match(solidity_type)
         if not short:
             continue
@@ -215,7 +215,7 @@ def main():
             return_length = "0x00"
             push_returns = "\n    COPY_VM_RETURN_DATA(<memoryOffset>)"
 
-        template = template_static if static_inputs else template_variable
+        template = TEMPLATE_STATIC if static_inputs else TEMPLATE_VARIABLE
         if static_outputs:
             memory_comment = f"Overwrites {hex(max(4 + 32 * len(inputs), 32 * len(outputs)))} bytes of memory from memoryOffset."
         else:

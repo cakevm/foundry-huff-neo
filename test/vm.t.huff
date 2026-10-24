@@ -81,7 +81,7 @@
     0x02 0x28 __FUNC_SIG("add(uint256,uint256)") 0x4000 STATICCALL_FUNCTION(0x02)
     0x2a swap1 ASSERT_EQ()
 
-    // Read the return data before the next call, which an assertion is too
+    // Read the return data before the next call; an assertion is a call too
     0x02 0x28 __FUNC_SIG("add(uint256,uint256)") 0x4000 CALL_FUNCTION(0x02)
     LAST_RETURN_WORD() swap1 ASSERT_TRUE()   // [word]
     0x2a swap1 ASSERT_EQ()

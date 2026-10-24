@@ -1,8 +1,9 @@
 #define constant VM_ADDRESS = 0x7109709ECfa91a80626fF3989D68f67F5b1DD12D
 
 /// Consumes [selector, word_1, ..., word_n], with word_1 the first word of the arguments, and calls the
-/// cheatcode with the calldata written to memoryOffset. A failed cheatcode reverts with its error.
-#define macro CALL_VM(words, outputLength, memoryOffset) = takes (0) returns (0) {
+/// cheatcode with the calldata written to memoryOffset, where the first outputLength bytes of the
+/// return data land too. A failed cheatcode reverts with its error.
+#define macro CALL_VM(words, outputLength, memoryOffset) = takes(0) returns(0) {
     <memoryOffset> mstore              // [word_1, ...]
     <memoryOffset> 0x04 add            // [pointer, word_1, ...]
     for (i in 0..<words>) {
@@ -28,7 +29,7 @@
 }
 
 /// Copies the return data of the last cheatcode to memoryOffset and pushes its size
-#define macro COPY_VM_RETURN_DATA(memoryOffset) = takes (0) returns (1) {
+#define macro COPY_VM_RETURN_DATA(memoryOffset) = takes(0) returns(1) {
     returndatasize 0x00 <memoryOffset> returndatacopy
     returndatasize
 }

@@ -52,6 +52,9 @@ jobs:
         with:
           version: latest
 
+      - name: Check src/vm.huff is generated from Vm.sol
+        run: make vm-huff-check
+
       - name: Run Tests
         run: make test
 
@@ -62,6 +65,3 @@ jobs:
       - name: Run Huff Fork Tests
         if: env.MAINNET_HTTP != ''
         run: make test-huff-fork
-
-      - name: Check src/vm.huff is generated from Vm.sol
-        run: python3 scripts/build_vm_macros.py && git diff --exit-code src/vm.huff
