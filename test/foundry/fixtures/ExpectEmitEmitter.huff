@@ -1,0 +1,152 @@
+// Huff version of the `Emitter` contract in Foundry's testdata/default/cheats/ExpectEmit.t.sol, without
+// `thing` and `changeThing`, which the ported tests do not use.
+// Runtime bytecode for ExpectEmit.t.huff: `hnc test/foundry/fixtures/ExpectEmitEmitter.huff -r`
+
+#define function emitEvent(uint256,uint256,uint256,uint256) nonpayable returns ()
+#define function emitNEvents(uint256,uint256,uint256,uint256,uint256) nonpayable returns ()
+#define function emitMultiple(uint256[2],uint256[2],uint256[2],uint256[2]) nonpayable returns ()
+#define function emitAndNest() nonpayable returns ()
+#define function emitOutOfExactOrder() nonpayable returns ()
+#define function emitNested(address,uint256,uint256,uint256,uint256) nonpayable returns ()
+#define function getVar() view returns (uint256)
+#define function emitWindow() nonpayable returns ()
+#define function emitNestedWindow() nonpayable returns ()
+#define function emitSplitWindow() nonpayable returns ()
+#define function emitWindowAndOnTest(address) nonpayable returns ()
+#define function doesNothing() pure returns ()
+#define function emitSomethingElse(uint256) nonpayable returns ()
+
+#define event Something(uint256 indexed, uint256 indexed, uint256 indexed, uint256)
+#define event SomethingElse(uint256)
+#define event SomethingNonIndexed(uint256)
+#define event A(uint256 indexed)
+#define event B(uint256 indexed)
+#define event C(uint256 indexed)
+#define event D(uint256 indexed)
+#define event E(uint256 indexed)
+
+/// Consumes [topic1, topic2, topic3, data] and emits Something(topic1, topic2, topic3, data)
+#define macro EMIT_SOMETHING() = takes(4) returns(0) {
+    swap3 0x00 mstore                  // [topic2, topic3, topic1]
+    swap1 swap2                        // [topic1, topic2, topic3]
+    __EVENT_HASH(Something) 0x20 0x00 log4
+}
+
+/// Emits Something(1, 2, 3, 4)
+#define macro EMIT_SOMETHING_1234() = takes(0) returns(0) {
+    0x04 0x03 0x02 0x01 EMIT_SOMETHING()
+}
+
+/// Emits A(1), B(2), C(3), D(4) and E(5)
+#define macro EMIT_WINDOW() = takes(0) returns(0) {
+    0x01 __EVENT_HASH(A) 0x00 0x00 log2
+    0x02 __EVENT_HASH(B) 0x00 0x00 log2
+    0x03 __EVENT_HASH(C) 0x00 0x00 log2
+    0x04 __EVENT_HASH(D) 0x00 0x00 log2
+    0x05 __EVENT_HASH(E) 0x00 0x00 log2
+}
+
+/// Calls `target` with the selector and no arguments, ignoring the result
+#define macro CALL_SELECTOR(target, selector) = takes(0) returns(0) {
+    <selector> 0xe0 shl 0x00 mstore
+    0x00 0x00 0x04 0x00 0x00 <target> gas call pop
+}
+
+#define macro MAIN() = takes(0) returns(0) {
+    0x00 calldataload 0xe0 shr
+    dup1 __FUNC_SIG(emitEvent) eq emit_event jumpi
+    dup1 __FUNC_SIG(emitNEvents) eq emit_n_events jumpi
+    dup1 __FUNC_SIG(emitMultiple) eq emit_multiple jumpi
+    dup1 __FUNC_SIG(emitAndNest) eq emit_and_nest jumpi
+    dup1 __FUNC_SIG(emitOutOfExactOrder) eq emit_out_of_exact_order jumpi
+    dup1 __FUNC_SIG(emitNested) eq emit_nested jumpi
+    dup1 __FUNC_SIG(getVar) eq get_var jumpi
+    dup1 __FUNC_SIG(emitWindow) eq emit_window jumpi
+    dup1 __FUNC_SIG(emitNestedWindow) eq emit_nested_window jumpi
+    dup1 __FUNC_SIG(emitSplitWindow) eq emit_split_window jumpi
+    dup1 __FUNC_SIG(emitWindowAndOnTest) eq emit_window_and_on_test jumpi
+    dup1 __FUNC_SIG(doesNothing) eq does_nothing jumpi
+    dup1 __FUNC_SIG(emitSomethingElse) eq emit_something_else jumpi
+    0x00 0x00 revert
+
+    emit_event:
+        0x64 calldataload 0x44 calldataload 0x24 calldataload 0x04 calldataload EMIT_SOMETHING()
+        stop
+
+    emit_n_events:
+        0x84 calldataload              // [n]
+        loop:
+            dup1 iszero done jumpi
+            0x64 calldataload 0x44 calldataload 0x24 calldataload 0x04 calldataload EMIT_SOMETHING()
+            0x01 swap1 sub
+            loop jump
+        done:
+        stop
+
+    emit_multiple:
+        // topic1[0] at 0x04, topic1[1] at 0x24, topic2[0] at 0x44, ... data[1] at 0xe4
+        0xc4 calldataload 0x84 calldataload 0x44 calldataload 0x04 calldataload EMIT_SOMETHING()
+        0xe4 calldataload 0xa4 calldataload 0x64 calldataload 0x24 calldataload EMIT_SOMETHING()
+        stop
+
+    emit_and_nest:
+        EMIT_SOMETHING_1234()
+        // this.emitEvent(1, 2, 3, 4)
+        __FUNC_SIG(emitEvent) 0xe0 shl 0x00 mstore
+        0x01 0x04 mstore
+        0x02 0x24 mstore
+        0x03 0x44 mstore
+        0x04 0x64 mstore
+        0x00 0x00 0x84 0x00 0x00 address gas call pop
+        stop
+
+    emit_out_of_exact_order:
+        0x01 0x00 mstore
+        __EVENT_HASH(SomethingNonIndexed) 0x20 0x00 log1
+        EMIT_SOMETHING_1234()
+        EMIT_SOMETHING_1234()
+        EMIT_SOMETHING_1234()
+        stop
+
+    emit_nested:
+        // inner.emitEvent(topic1, topic2, topic3, data)
+        __FUNC_SIG(emitEvent) 0xe0 shl 0x00 mstore
+        0x80 0x24 0x04 calldatacopy
+        0x00 0x00 0x84 0x00 0x00 0x04 calldataload gas call pop
+        stop
+
+    get_var:
+        0x01 0x00 mstore
+        0x20 0x00 return
+
+    emit_window:
+        EMIT_WINDOW()
+        stop
+
+    emit_nested_window:
+        0x01 __EVENT_HASH(A) 0x00 0x00 log2
+        0x03 __EVENT_HASH(C) 0x00 0x00 log2
+        0x05 __EVENT_HASH(E) 0x00 0x00 log2
+        CALL_SELECTOR(address, __FUNC_SIG(emitWindow))
+        stop
+
+    emit_split_window:
+        CALL_SELECTOR(address, __FUNC_SIG(emitWindow))
+        CALL_SELECTOR(address, __FUNC_SIG(emitWindow))
+        stop
+
+    emit_window_and_on_test:
+        CALL_SELECTOR(address, __FUNC_SIG(emitWindow))
+        // t.emitLocal()
+        __FUNC_SIG("emitLocal()") 0xe0 shl 0x00 mstore
+        0x00 0x00 0x04 0x00 0x00 0x04 calldataload gas call pop
+        stop
+
+    does_nothing:
+        stop
+
+    emit_something_else:
+        0x04 calldataload 0x00 mstore
+        __EVENT_HASH(SomethingElse) 0x20 0x00 log1
+        stop
+}

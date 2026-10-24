@@ -1,0 +1,82 @@
+// Foundry's `NestedMock`, `NestedMockDelegateCall` (MockCall.t.sol) and `NestedContract`
+// (ExpectCall.t.sol) helper contracts, calling the MockCallTarget.huff contract at 0x1000.
+// Runtime bytecode: hnc MockCallNested.huff -r
+
+#define function sum() view returns (uint256)
+#define function sumDelegate() nonpayable returns (uint256)
+#define function forwardPay() payable returns (uint256)
+#define function addHardGasLimit() view returns (uint256)
+#define function hello() pure returns (string)
+#define function sumInPlace(uint256, uint256) view returns (uint256)
+
+#define function numberA() pure returns (uint256)
+#define function numberB() pure returns (uint256)
+#define function add(uint256, uint256) pure returns (uint256)
+#define function pay(uint256) payable returns (uint256)
+
+#define constant INNER = 0x1000
+
+/// Consumes [success] and reverts with the return data of the last call when it is zero
+#define macro BUBBLE() = takes(1) returns(0) {
+    ok jumpi
+    returndatasize 0x00 0x00 returndatacopy
+    returndatasize 0x00 revert
+    ok:
+}
+
+#define macro RETURN_WORD() = takes(1) returns(0) {
+    0x00 mstore 0x20 0x00 return
+}
+
+#define macro MAIN() = takes(0) returns(0) {
+    0x00 calldataload 0xe0 shr
+    dup1 __FUNC_SIG(sum) eq sum jumpi
+    dup1 __FUNC_SIG(sumDelegate) eq sum_delegate jumpi
+    dup1 __FUNC_SIG(forwardPay) eq forward_pay jumpi
+    dup1 __FUNC_SIG(addHardGasLimit) eq add_hard_gas_limit jumpi
+    dup1 __FUNC_SIG(hello) eq hello jumpi
+    dup1 __FUNC_SIG(sumInPlace) eq sum_in_place jumpi
+    0x00 0x00 revert
+
+    // inner.numberA() + inner.numberB()
+    sum:
+        __FUNC_SIG(numberA) 0xe0 shl 0x80 mstore
+        0x20 0x00 0x04 0x80 [INNER] gas staticcall BUBBLE()
+        __FUNC_SIG(numberB) 0xe0 shl 0x80 mstore
+        0x20 0x20 0x04 0x80 [INNER] gas staticcall BUBBLE()
+        0x20 mload 0x00 mload add RETURN_WORD()
+
+    // the same with delegatecalls to inner
+    sum_delegate:
+        __FUNC_SIG(numberA) 0xe0 shl 0x80 mstore
+        0x20 0x00 0x04 0x80 [INNER] gas delegatecall BUBBLE()
+        __FUNC_SIG(numberB) 0xe0 shl 0x80 mstore
+        0x20 0x20 0x04 0x80 [INNER] gas delegatecall BUBBLE()
+        0x20 mload 0x00 mload add RETURN_WORD()
+
+    // inner.pay{gas: 50_000, value: 1}(1)
+    forward_pay:
+        __FUNC_SIG(pay) 0xe0 shl 0x80 mstore
+        0x01 0x84 mstore
+        0x20 0x00 0x24 0x80 0x01 [INNER] 0xc350 call BUBBLE()
+        0x00 mload RETURN_WORD()
+
+    // inner.add{gas: 50_000}(1, 1)
+    add_hard_gas_limit:
+        __FUNC_SIG(add) 0xe0 shl 0x80 mstore
+        0x01 0x84 mstore
+        0x01 0xa4 mstore
+        0x20 0x00 0x44 0x80 [INNER] 0xc350 staticcall BUBBLE()
+        0x00 mload RETURN_WORD()
+
+    // "hi"
+    hello:
+        0x20 0x00 mstore
+        0x02 0x20 mstore
+        0x6869000000000000000000000000000000000000000000000000000000000000 0x40 mstore
+        0x60 0x00 return
+
+    // a + b + 42
+    sum_in_place:
+        0x24 calldataload 0x04 calldataload add 0x2a add RETURN_WORD()
+}

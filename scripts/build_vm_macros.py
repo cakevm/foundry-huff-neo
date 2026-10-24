@@ -26,6 +26,37 @@ DEFAULT_OVERLOADS = {
     "envUint": "envUint(string)",
     "parseJson": "parseJson(string)",
     "parseToml": "parseToml(string)",
+    "deriveKey": "deriveKey(string,uint32)",
+    "eip712HashType": "eip712HashType(string)",
+    "expectCallMinGas": "expectCallMinGas(address,uint256,uint64,bytes)",
+    "parseJsonAddress": "parseJsonAddress(string,string)",
+    "parseJsonAddressArray": "parseJsonAddressArray(string,string)",
+    "parseJsonBoolArray": "parseJsonBoolArray(string,string)",
+    "parseJsonBytes": "parseJsonBytes(string,string)",
+    "parseJsonBytes32": "parseJsonBytes32(string,string)",
+    "parseJsonBytes32Array": "parseJsonBytes32Array(string,string)",
+    "parseJsonBytesArray": "parseJsonBytesArray(string,string)",
+    "parseJsonIntArray": "parseJsonIntArray(string,string)",
+    "parseJsonString": "parseJsonString(string,string)",
+    "parseJsonStringArray": "parseJsonStringArray(string,string)",
+    "parseJsonType": "parseJsonType(string,string)",
+    "parseJsonUint": "parseJsonUint(string,string)",
+    "parseJsonUintArray": "parseJsonUintArray(string,string)",
+    "parseTomlAddress": "parseTomlAddress(string,string)",
+    "parseTomlAddressArray": "parseTomlAddressArray(string,string)",
+    "parseTomlBoolArray": "parseTomlBoolArray(string,string)",
+    "parseTomlBytes": "parseTomlBytes(string,string)",
+    "parseTomlBytes32": "parseTomlBytes32(string,string)",
+    "parseTomlBytes32Array": "parseTomlBytes32Array(string,string)",
+    "parseTomlBytesArray": "parseTomlBytesArray(string,string)",
+    "parseTomlIntArray": "parseTomlIntArray(string,string)",
+    "parseTomlString": "parseTomlString(string,string)",
+    "parseTomlStringArray": "parseTomlStringArray(string,string)",
+    "parseTomlType": "parseTomlType(string,string)",
+    "parseTomlUint": "parseTomlUint(string,string)",
+    "parseTomlUintArray": "parseTomlUintArray(string,string)",
+    "rpc": "rpc(string,string)",
+    "rpcJson": "rpcJson(string,string)",
     "skip": "skip(bool)",
 }
 
@@ -44,7 +75,7 @@ template_variable = """
 /// Consumes `elements` ABI-encoded words of {commentArguments} from the stack{returnComment}: vm.{signature}
 /// Overwrites the calldata and the return data in memory from memoryOffset.
 #define macro {macroName}(elements, memoryOffset) = takes(0) returns({returnCount}) {
-    __RIGHTPAD(__FUNC_SIG('{signature}'))
+{normalize}    __RIGHTPAD(__FUNC_SIG('{signature}'))
     CALL_VM(<elements>, {returnLength}, <memoryOffset>){pushReturns}
 }
 """
@@ -81,8 +112,18 @@ def parse_cheatcodes(source):
     enums = set(re.findall(r"\benum\s+(\w+)", source))
     section = None
     docs = []
+    declaration = None
     for line in source.splitlines():
         stripped = line.strip()
+        # A declaration can span several lines; join them up to its semicolon
+        if declaration is not None:
+            declaration += " " + stripped
+            if ";" not in stripped:
+                continue
+            stripped, declaration = declaration, None
+        elif stripped.startswith("function ") and ";" not in stripped:
+            declaration = stripped
+            continue
         header = re.match(r"// ======== (\w+) ========", stripped)
         if header:
             section = header.group(1)
@@ -120,7 +161,8 @@ def macro_names(cheatcodes):
 
 def normalize_bytes_arguments(inputs):
     """Code that left-aligns `bytesN` arguments pushed right-aligned, as `__FUNC_SIG` pushes a selector.
-    A left-aligned value is either zero or at least 2^(256 - 8N), so it is never shifted."""
+    A left-aligned value is either zero or at least 2^(256 - 8N), so it is never shifted. A static
+    argument has its own head word in the ABI encoding too, at the same position from the top."""
     lines = []
     for position, solidity_type in enumerate(inputs):
         short = SHORT_BYTES.match(solidity_type)
@@ -179,7 +221,7 @@ def main():
             .replace("{macroName}", macro_name)
             .replace("{memoryComment}", memory_comment)
             .replace("{takes}", str(len(inputs)))
-            .replace("{normalize}", normalize_bytes_arguments(inputs) if static_inputs else "")
+            .replace("{normalize}", normalize_bytes_arguments(inputs))
             .replace("{argumentCount}", hex(len(inputs)))
             .replace("{returnCount}", str(return_count))
             .replace("{returnLength}", return_length)

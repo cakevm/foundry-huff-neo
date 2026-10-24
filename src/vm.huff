@@ -52,6 +52,111 @@
     <memoryOffset> mload
 }
 
+/// Derive a private key from a provided mnemonic string (or mnemonic file path)
+/// at `{derivationPath}{index}`.
+/// Consumes `elements` ABI-encoded words of string, string, uint32 from the stack and pushes uint256: vm.deriveKey(string,string,uint32)
+/// Overwrites the calldata and the return data in memory from memoryOffset.
+#define macro VM_DERIVE_KEY_STRING_STRING_UINT32(elements, memoryOffset) = takes(0) returns(1) {
+    __RIGHTPAD(__FUNC_SIG('deriveKey(string,string,uint32)'))
+    CALL_VM(<elements>, 0x20, <memoryOffset>)
+    <memoryOffset> mload
+}
+
+/// Derive a private key from a provided mnemonic string (or mnemonic file path) in the specified language
+/// at the derivation path `m/44'/60'/0'/0/{index}`.
+/// Consumes `elements` ABI-encoded words of string, uint32, string from the stack and pushes uint256: vm.deriveKey(string,uint32,string)
+/// Overwrites the calldata and the return data in memory from memoryOffset.
+#define macro VM_DERIVE_KEY_STRING_UINT32_STRING(elements, memoryOffset) = takes(0) returns(1) {
+    __RIGHTPAD(__FUNC_SIG('deriveKey(string,uint32,string)'))
+    CALL_VM(<elements>, 0x20, <memoryOffset>)
+    <memoryOffset> mload
+}
+
+/// Derive a private key from a provided mnemonic string (or mnemonic file path) in the specified language
+/// at `{derivationPath}{index}`.
+/// Consumes `elements` ABI-encoded words of string, string, uint32, string from the stack and pushes uint256: vm.deriveKey(string,string,uint32,string)
+/// Overwrites the calldata and the return data in memory from memoryOffset.
+#define macro VM_DERIVE_KEY_STRING_STRING_UINT32_STRING(elements, memoryOffset) = takes(0) returns(1) {
+    __RIGHTPAD(__FUNC_SIG('deriveKey(string,string,uint32,string)'))
+    CALL_VM(<elements>, 0x20, <memoryOffset>)
+    <memoryOffset> mload
+}
+
+/// Adds the secp256k1 affine points `point1 = (pointX1, pointY1)` and
+/// `point2 = (pointX2, pointY2)`.
+/// The point at infinity is represented as `(0, 0)`.
+/// Consumes uint256, uint256, uint256, uint256 from the stack and pushes uint256, uint256: vm.ecAddAffine(uint256,uint256,uint256,uint256)
+/// Overwrites 0x84 bytes of memory from memoryOffset.
+#define macro VM_EC_ADD_AFFINE(memoryOffset) = takes(4) returns(2) {
+    __RIGHTPAD(__FUNC_SIG('ecAddAffine(uint256,uint256,uint256,uint256)'))
+    CALL_VM(0x4, 0x40, <memoryOffset>)
+    <memoryOffset> 0x20 add mload
+    <memoryOffset> mload
+}
+
+/// Adds the secp256k1 projective points `point1 = (pointX1, pointY1, pointZ1)` and
+/// `point2 = (pointX2, pointY2, pointZ2)`.
+/// The point at infinity is accepted as `(0, y, 0)` for any non-zero `y` and returned as
+/// `(0, 1, 0)`. Any other result is normalized to `(x, y, 1)`.
+/// Consumes uint256, uint256, uint256, uint256, uint256, uint256 from the stack and pushes uint256, uint256, uint256: vm.ecAddProjective(uint256,uint256,uint256,uint256,uint256,uint256)
+/// Overwrites 0xc4 bytes of memory from memoryOffset.
+#define macro VM_EC_ADD_PROJECTIVE(memoryOffset) = takes(6) returns(3) {
+    __RIGHTPAD(__FUNC_SIG('ecAddProjective(uint256,uint256,uint256,uint256,uint256,uint256)'))
+    CALL_VM(0x6, 0x60, <memoryOffset>)
+    <memoryOffset> 0x40 add mload
+    <memoryOffset> 0x20 add mload
+    <memoryOffset> mload
+}
+
+/// Converts the secp256k1 affine point `(pointX, pointY)` to projective coordinates.
+/// The point at infinity is converted from `(0, 0)` to `(0, 1, 0)`.
+/// Consumes uint256, uint256 from the stack and pushes uint256, uint256, uint256: vm.ecAffineToProjective(uint256,uint256)
+/// Overwrites 0x60 bytes of memory from memoryOffset.
+#define macro VM_EC_AFFINE_TO_PROJECTIVE(memoryOffset) = takes(2) returns(3) {
+    __RIGHTPAD(__FUNC_SIG('ecAffineToProjective(uint256,uint256)'))
+    CALL_VM(0x2, 0x60, <memoryOffset>)
+    <memoryOffset> 0x40 add mload
+    <memoryOffset> 0x20 add mload
+    <memoryOffset> mload
+}
+
+/// Multiplies the secp256k1 affine point `(pointX, pointY)` by `scalar`.
+/// The scalar is reduced modulo the secp256k1 group order.
+/// The point at infinity is represented as `(0, 0)`.
+/// Consumes uint256, uint256, uint256 from the stack and pushes uint256, uint256: vm.ecMulAffine(uint256,uint256,uint256)
+/// Overwrites 0x64 bytes of memory from memoryOffset.
+#define macro VM_EC_MUL_AFFINE(memoryOffset) = takes(3) returns(2) {
+    __RIGHTPAD(__FUNC_SIG('ecMulAffine(uint256,uint256,uint256)'))
+    CALL_VM(0x3, 0x40, <memoryOffset>)
+    <memoryOffset> 0x20 add mload
+    <memoryOffset> mload
+}
+
+/// Multiplies the secp256k1 projective point `(pointX, pointY, pointZ)` by `scalar`.
+/// The scalar is reduced modulo the secp256k1 group order.
+/// The point at infinity is accepted as `(0, y, 0)` for any non-zero `y` and returned as
+/// `(0, 1, 0)`. Any other result is normalized to `(x, y, 1)`.
+/// Consumes uint256, uint256, uint256, uint256 from the stack and pushes uint256, uint256, uint256: vm.ecMulProjective(uint256,uint256,uint256,uint256)
+/// Overwrites 0x84 bytes of memory from memoryOffset.
+#define macro VM_EC_MUL_PROJECTIVE(memoryOffset) = takes(4) returns(3) {
+    __RIGHTPAD(__FUNC_SIG('ecMulProjective(uint256,uint256,uint256,uint256)'))
+    CALL_VM(0x4, 0x60, <memoryOffset>)
+    <memoryOffset> 0x40 add mload
+    <memoryOffset> 0x20 add mload
+    <memoryOffset> mload
+}
+
+/// Converts the secp256k1 projective point `(pointX, pointY, pointZ)` to affine coordinates.
+/// The point at infinity is converted from `(0, y, 0)` for any non-zero `y` to `(0, 0)`.
+/// Consumes uint256, uint256, uint256 from the stack and pushes uint256, uint256: vm.ecProjectiveToAffine(uint256,uint256,uint256)
+/// Overwrites 0x64 bytes of memory from memoryOffset.
+#define macro VM_EC_PROJECTIVE_TO_AFFINE(memoryOffset) = takes(3) returns(2) {
+    __RIGHTPAD(__FUNC_SIG('ecProjectiveToAffine(uint256,uint256,uint256)'))
+    CALL_VM(0x3, 0x40, <memoryOffset>)
+    <memoryOffset> 0x20 add mload
+    <memoryOffset> mload
+}
+
 /// Derives the Ed25519 public key from a private key.
 /// Consumes bytes32 from the stack and pushes bytes32: vm.publicKeyEd25519(bytes32)
 /// Overwrites 0x24 bytes of memory from memoryOffset.
@@ -78,6 +183,26 @@
     __RIGHTPAD(__FUNC_SIG('rememberKey(uint256)'))
     CALL_VM(0x1, 0x20, <memoryOffset>)
     <memoryOffset> mload
+}
+
+/// Derive a set number of wallets from a mnemonic at the derivation path `m/44'/60'/0'/0/{0..count}`.
+/// The respective private keys are saved to the local forge wallet for later use and their addresses are returned.
+/// Consumes `elements` ABI-encoded words of string, string, uint32 from the stack, writes the ABI-encoded address[] to memoryOffset and pushes its size: vm.rememberKeys(string,string,uint32)
+/// Overwrites the calldata and the return data in memory from memoryOffset.
+#define macro VM_REMEMBER_KEYS_STRING_STRING_UINT32(elements, memoryOffset) = takes(0) returns(1) {
+    __RIGHTPAD(__FUNC_SIG('rememberKeys(string,string,uint32)'))
+    CALL_VM(<elements>, 0x00, <memoryOffset>)
+    COPY_VM_RETURN_DATA(<memoryOffset>)
+}
+
+/// Derive a set number of wallets from a mnemonic in the specified language at the derivation path `m/44'/60'/0'/0/{0..count}`.
+/// The respective private keys are saved to the local forge wallet for later use and their addresses are returned.
+/// Consumes `elements` ABI-encoded words of string, string, string, uint32 from the stack, writes the ABI-encoded address[] to memoryOffset and pushes its size: vm.rememberKeys(string,string,string,uint32)
+/// Overwrites the calldata and the return data in memory from memoryOffset.
+#define macro VM_REMEMBER_KEYS_STRING_STRING_STRING_UINT32(elements, memoryOffset) = takes(0) returns(1) {
+    __RIGHTPAD(__FUNC_SIG('rememberKeys(string,string,string,uint32)'))
+    CALL_VM(<elements>, 0x00, <memoryOffset>)
+    COPY_VM_RETURN_DATA(<memoryOffset>)
 }
 
 /// Signs `digest` with `privateKey` using the secp256k1 curve.
@@ -124,12 +249,57 @@
     <memoryOffset> mload
 }
 
+/// Signs a message with namespace using Ed25519.
+/// The signature covers namespace || message for domain separation.
+/// Returns a 64-byte Ed25519 signature.
+/// Consumes `elements` ABI-encoded words of bytes, bytes, bytes32 from the stack, writes the ABI-encoded bytes to memoryOffset and pushes its size: vm.signEd25519(bytes,bytes,bytes32)
+/// Overwrites the calldata and the return data in memory from memoryOffset.
+#define macro VM_SIGN_ED25519(elements, memoryOffset) = takes(0) returns(1) {
+    __RIGHTPAD(__FUNC_SIG('signEd25519(bytes,bytes,bytes32)'))
+    CALL_VM(<elements>, 0x00, <memoryOffset>)
+    COPY_VM_RETURN_DATA(<memoryOffset>)
+}
+
+/// Signs `digest` as a Tempo V2 keychain signature for `account` using a secp256k1 access key.
+/// Returns the encoded signature bytes accepted by `SignatureVerifier.verifyKeychain`.
+/// Consumes uint256, address, bytes32 from the stack, writes the ABI-encoded bytes to memoryOffset and pushes its size: vm.signKeychain(uint256,address,bytes32)
+/// Overwrites the calldata and the return data in memory from memoryOffset.
+#define macro VM_SIGN_KEYCHAIN(memoryOffset) = takes(3) returns(1) {
+    __RIGHTPAD(__FUNC_SIG('signKeychain(uint256,address,bytes32)'))
+    CALL_VM(0x3, 0x00, <memoryOffset>)
+    COPY_VM_RETURN_DATA(<memoryOffset>)
+}
+
+/// Signs `digest` as a Tempo V2 keychain signature for `account` using a root or admin secp256k1 key.
+/// Returns the encoded signature bytes accepted by `SignatureVerifier.verifyKeychainAdmin`.
+/// The supplied `digest` should already be domain-separated with chain ID, contract address,
+/// and account address.
+/// Consumes uint256, address, bytes32 from the stack, writes the ABI-encoded bytes to memoryOffset and pushes its size: vm.signKeychainAdmin(uint256,address,bytes32)
+/// Overwrites the calldata and the return data in memory from memoryOffset.
+#define macro VM_SIGN_KEYCHAIN_ADMIN(memoryOffset) = takes(3) returns(1) {
+    __RIGHTPAD(__FUNC_SIG('signKeychainAdmin(uint256,address,bytes32)'))
+    CALL_VM(0x3, 0x00, <memoryOffset>)
+    COPY_VM_RETURN_DATA(<memoryOffset>)
+}
+
 /// Signs `digest` with `privateKey` using the secp256r1 curve.
 /// Consumes uint256, bytes32 from the stack and pushes bytes32, bytes32: vm.signP256(uint256,bytes32)
 /// Overwrites 0x44 bytes of memory from memoryOffset.
 #define macro VM_SIGN_P256(memoryOffset) = takes(2) returns(2) {
     __RIGHTPAD(__FUNC_SIG('signP256(uint256,bytes32)'))
     CALL_VM(0x2, 0x40, <memoryOffset>)
+    <memoryOffset> 0x20 add mload
+    <memoryOffset> mload
+}
+
+/// Signs `digest` with `privateKey` on the secp256k1 curve, using the given `nonce`
+/// as the raw ephemeral k value in ECDSA (instead of deriving it deterministically).
+/// Consumes uint256, bytes32, uint256 from the stack and pushes uint8, bytes32, bytes32: vm.signWithNonceUnsafe(uint256,bytes32,uint256)
+/// Overwrites 0x64 bytes of memory from memoryOffset.
+#define macro VM_SIGN_WITH_NONCE_UNSAFE(memoryOffset) = takes(3) returns(3) {
+    __RIGHTPAD(__FUNC_SIG('signWithNonceUnsafe(uint256,bytes32,uint256)'))
+    CALL_VM(0x3, 0x60, <memoryOffset>)
+    <memoryOffset> 0x40 add mload
     <memoryOffset> 0x20 add mload
     <memoryOffset> mload
 }
@@ -169,6 +339,16 @@
     CALL_VM(0x2, 0x60, <memoryOffset>)
     <memoryOffset> 0x40 add mload
     <memoryOffset> 0x20 add mload
+    <memoryOffset> mload
+}
+
+/// Verifies an Ed25519 signature over namespace || message.
+/// Returns true if signature is valid, false otherwise.
+/// Consumes `elements` ABI-encoded words of bytes, bytes, bytes, bytes32 from the stack and pushes bool: vm.verifyEd25519(bytes,bytes,bytes,bytes32)
+/// Overwrites the calldata and the return data in memory from memoryOffset.
+#define macro VM_VERIFY_ED25519(elements, memoryOffset) = takes(0) returns(1) {
+    __RIGHTPAD(__FUNC_SIG('verifyEd25519(bytes,bytes,bytes,bytes32)'))
+    CALL_VM(<elements>, 0x20, <memoryOffset>)
     <memoryOffset> mload
 }
 
@@ -303,6 +483,50 @@
     <memoryOffset> mload
 }
 
+/// Gets the environment variable `name` and parses it as an array of `address`, delimited by `delim`.
+/// Reverts if the variable could not be parsed.
+/// Returns `defaultValue` if the variable was not found.
+/// Consumes `elements` ABI-encoded words of string, string, address[] from the stack, writes the ABI-encoded address[] to memoryOffset and pushes its size: vm.envOr(string,string,address[])
+/// Overwrites the calldata and the return data in memory from memoryOffset.
+#define macro VM_ENV_OR_STRING_STRING_ADDRESS_ARRAY(elements, memoryOffset) = takes(0) returns(1) {
+    __RIGHTPAD(__FUNC_SIG('envOr(string,string,address[])'))
+    CALL_VM(<elements>, 0x00, <memoryOffset>)
+    COPY_VM_RETURN_DATA(<memoryOffset>)
+}
+
+/// Gets the environment variable `name` and parses it as an array of `bytes32`, delimited by `delim`.
+/// Reverts if the variable could not be parsed.
+/// Returns `defaultValue` if the variable was not found.
+/// Consumes `elements` ABI-encoded words of string, string, bytes32[] from the stack, writes the ABI-encoded bytes32[] to memoryOffset and pushes its size: vm.envOr(string,string,bytes32[])
+/// Overwrites the calldata and the return data in memory from memoryOffset.
+#define macro VM_ENV_OR_STRING_STRING_BYTES32_ARRAY(elements, memoryOffset) = takes(0) returns(1) {
+    __RIGHTPAD(__FUNC_SIG('envOr(string,string,bytes32[])'))
+    CALL_VM(<elements>, 0x00, <memoryOffset>)
+    COPY_VM_RETURN_DATA(<memoryOffset>)
+}
+
+/// Gets the environment variable `name` and parses it as an array of `string`, delimited by `delim`.
+/// Reverts if the variable could not be parsed.
+/// Returns `defaultValue` if the variable was not found.
+/// Consumes `elements` ABI-encoded words of string, string, string[] from the stack, writes the ABI-encoded string[] to memoryOffset and pushes its size: vm.envOr(string,string,string[])
+/// Overwrites the calldata and the return data in memory from memoryOffset.
+#define macro VM_ENV_OR_STRING_STRING_STRING_ARRAY(elements, memoryOffset) = takes(0) returns(1) {
+    __RIGHTPAD(__FUNC_SIG('envOr(string,string,string[])'))
+    CALL_VM(<elements>, 0x00, <memoryOffset>)
+    COPY_VM_RETURN_DATA(<memoryOffset>)
+}
+
+/// Gets the environment variable `name` and parses it as an array of `bytes`, delimited by `delim`.
+/// Reverts if the variable could not be parsed.
+/// Returns `defaultValue` if the variable was not found.
+/// Consumes `elements` ABI-encoded words of string, string, bytes[] from the stack, writes the ABI-encoded bytes[] to memoryOffset and pushes its size: vm.envOr(string,string,bytes[])
+/// Overwrites the calldata and the return data in memory from memoryOffset.
+#define macro VM_ENV_OR_STRING_STRING_BYTES_ARRAY(elements, memoryOffset) = takes(0) returns(1) {
+    __RIGHTPAD(__FUNC_SIG('envOr(string,string,bytes[])'))
+    CALL_VM(<elements>, 0x00, <memoryOffset>)
+    COPY_VM_RETURN_DATA(<memoryOffset>)
+}
+
 /// Gets the environment variable `name` and parses it as `int256`.
 /// Reverts if the variable could not be parsed.
 /// Returns `defaultValue` if the variable was not found.
@@ -354,6 +578,39 @@
 /// Overwrites the calldata and the return data in memory from memoryOffset.
 #define macro VM_ENV_OR_STRING_BYTES(elements, memoryOffset) = takes(0) returns(1) {
     __RIGHTPAD(__FUNC_SIG('envOr(string,bytes)'))
+    CALL_VM(<elements>, 0x00, <memoryOffset>)
+    COPY_VM_RETURN_DATA(<memoryOffset>)
+}
+
+/// Gets the environment variable `name` and parses it as an array of `bool`, delimited by `delim`.
+/// Reverts if the variable could not be parsed.
+/// Returns `defaultValue` if the variable was not found.
+/// Consumes `elements` ABI-encoded words of string, string, bool[] from the stack, writes the ABI-encoded bool[] to memoryOffset and pushes its size: vm.envOr(string,string,bool[])
+/// Overwrites the calldata and the return data in memory from memoryOffset.
+#define macro VM_ENV_OR_STRING_STRING_BOOL_ARRAY(elements, memoryOffset) = takes(0) returns(1) {
+    __RIGHTPAD(__FUNC_SIG('envOr(string,string,bool[])'))
+    CALL_VM(<elements>, 0x00, <memoryOffset>)
+    COPY_VM_RETURN_DATA(<memoryOffset>)
+}
+
+/// Gets the environment variable `name` and parses it as an array of `uint256`, delimited by `delim`.
+/// Reverts if the variable could not be parsed.
+/// Returns `defaultValue` if the variable was not found.
+/// Consumes `elements` ABI-encoded words of string, string, uint256[] from the stack, writes the ABI-encoded uint256[] to memoryOffset and pushes its size: vm.envOr(string,string,uint256[])
+/// Overwrites the calldata and the return data in memory from memoryOffset.
+#define macro VM_ENV_OR_STRING_STRING_UINT256_ARRAY(elements, memoryOffset) = takes(0) returns(1) {
+    __RIGHTPAD(__FUNC_SIG('envOr(string,string,uint256[])'))
+    CALL_VM(<elements>, 0x00, <memoryOffset>)
+    COPY_VM_RETURN_DATA(<memoryOffset>)
+}
+
+/// Gets the environment variable `name` and parses it as an array of `int256`, delimited by `delim`.
+/// Reverts if the variable could not be parsed.
+/// Returns `defaultValue` if the variable was not found.
+/// Consumes `elements` ABI-encoded words of string, string, int256[] from the stack, writes the ABI-encoded int256[] to memoryOffset and pushes its size: vm.envOr(string,string,int256[])
+/// Overwrites the calldata and the return data in memory from memoryOffset.
+#define macro VM_ENV_OR_STRING_STRING_INT256_ARRAY(elements, memoryOffset) = takes(0) returns(1) {
+    __RIGHTPAD(__FUNC_SIG('envOr(string,string,int256[])'))
     CALL_VM(<elements>, 0x00, <memoryOffset>)
     COPY_VM_RETURN_DATA(<memoryOffset>)
 }
@@ -442,6 +699,25 @@
     <memoryOffset> mload
 }
 
+/// Gets all the logs according to specified filter.
+/// Consumes `elements` ABI-encoded words of uint256, uint256, address, bytes32[] from the stack, writes the ABI-encoded EthGetLogs[] to memoryOffset and pushes its size: vm.eth_getLogs(uint256,uint256,address,bytes32[])
+/// Overwrites the calldata and the return data in memory from memoryOffset.
+#define macro VM_ETH_GET_LOGS(elements, memoryOffset) = takes(0) returns(1) {
+    __RIGHTPAD(__FUNC_SIG('eth_getLogs(uint256,uint256,address,bytes32[])'))
+    CALL_VM(<elements>, 0x00, <memoryOffset>)
+    COPY_VM_RETURN_DATA(<memoryOffset>)
+}
+
+/// Gets the EIP-1186 account and storage proof of `target` at `blockNumber` from the active fork.
+/// The proof is fetched from the fork's RPC endpoint and does not reflect local state changes.
+/// Consumes `elements` ABI-encoded words of address, bytes32[], uint256 from the stack, writes the ABI-encoded EthGetProof to memoryOffset and pushes its size: vm.eth_getProof(address,bytes32[],uint256)
+/// Overwrites the calldata and the return data in memory from memoryOffset.
+#define macro VM_ETH_GET_PROOF(elements, memoryOffset) = takes(0) returns(1) {
+    __RIGHTPAD(__FUNC_SIG('eth_getProof(address,bytes32[],uint256)'))
+    CALL_VM(<elements>, 0x00, <memoryOffset>)
+    COPY_VM_RETURN_DATA(<memoryOffset>)
+}
+
 /// Gets the current `block.blobbasefee`.
 /// You should use this instead of `block.blobbasefee` if you use `vm.blobBaseFee`, as `block.blobbasefee` is assumed to be constant across a transaction,
 /// and as a result will get optimized out by the compiler.
@@ -498,6 +774,17 @@
     __RIGHTPAD(__FUNC_SIG('getEvmVersion()'))
     CALL_VM(0x0, 0x00, <memoryOffset>)
     COPY_VM_RETURN_DATA(<memoryOffset>)
+}
+
+/// Gets the map key and parent of a mapping at a given slot, for a given address.
+/// Consumes address, bytes32 from the stack and pushes bool, bytes32, bytes32: vm.getMappingKeyAndParentOf(address,bytes32)
+/// Overwrites 0x60 bytes of memory from memoryOffset.
+#define macro VM_GET_MAPPING_KEY_AND_PARENT_OF(memoryOffset) = takes(2) returns(3) {
+    __RIGHTPAD(__FUNC_SIG('getMappingKeyAndParentOf(address,bytes32)'))
+    CALL_VM(0x2, 0x60, <memoryOffset>)
+    <memoryOffset> 0x40 add mload
+    <memoryOffset> 0x20 add mload
+    <memoryOffset> mload
 }
 
 /// Gets the number of elements in the mapping at the given slot, for a given address.
@@ -596,6 +883,15 @@
     COPY_VM_RETURN_DATA(<memoryOffset>)
 }
 
+/// Returns an array of storage slots occupied by the specified variable.
+/// Consumes `elements` ABI-encoded words of address, string from the stack, writes the ABI-encoded uint256[] to memoryOffset and pushes its size: vm.getStorageSlots(address,string)
+/// Overwrites the calldata and the return data in memory from memoryOffset.
+#define macro VM_GET_STORAGE_SLOTS(elements, memoryOffset) = takes(0) returns(1) {
+    __RIGHTPAD(__FUNC_SIG('getStorageSlots(address,string)'))
+    CALL_VM(<elements>, 0x00, <memoryOffset>)
+    COPY_VM_RETURN_DATA(<memoryOffset>)
+}
+
 /// Returns `true` if `spender` is on the active Tempo hardfork's implicit-approval list,
 /// meaning it can pull TIP-20 tokens from `msg.sender` without a prior `approve()`.
 /// Returns `false` on non-Tempo networks.
@@ -686,11 +982,29 @@
     COPY_VM_RETURN_DATA(<memoryOffset>)
 }
 
+/// Performs an Ethereum JSON-RPC request to the given endpoint and returns the JSON result.
+/// Consumes `elements` ABI-encoded words of string, string, string from the stack, writes the ABI-encoded string to memoryOffset and pushes its size: vm.rpcJson(string,string,string)
+/// Overwrites the calldata and the return data in memory from memoryOffset.
+#define macro VM_RPC_JSON_STRING_STRING_STRING(elements, memoryOffset) = takes(0) returns(1) {
+    __RIGHTPAD(__FUNC_SIG('rpcJson(string,string,string)'))
+    CALL_VM(<elements>, 0x00, <memoryOffset>)
+    COPY_VM_RETURN_DATA(<memoryOffset>)
+}
+
 /// Performs an Ethereum JSON-RPC request to the current fork URL.
 /// Consumes `elements` ABI-encoded words of string, string from the stack, writes the ABI-encoded bytes to memoryOffset and pushes its size: vm.rpc(string,string)
 /// Overwrites the calldata and the return data in memory from memoryOffset.
 #define macro VM_RPC(elements, memoryOffset) = takes(0) returns(1) {
     __RIGHTPAD(__FUNC_SIG('rpc(string,string)'))
+    CALL_VM(<elements>, 0x00, <memoryOffset>)
+    COPY_VM_RETURN_DATA(<memoryOffset>)
+}
+
+/// Performs an Ethereum JSON-RPC request to the given endpoint.
+/// Consumes `elements` ABI-encoded words of string, string, string from the stack, writes the ABI-encoded bytes to memoryOffset and pushes its size: vm.rpc(string,string,string)
+/// Overwrites the calldata and the return data in memory from memoryOffset.
+#define macro VM_RPC_STRING_STRING_STRING(elements, memoryOffset) = takes(0) returns(1) {
+    __RIGHTPAD(__FUNC_SIG('rpc(string,string,string)'))
     CALL_VM(<elements>, 0x00, <memoryOffset>)
     COPY_VM_RETURN_DATA(<memoryOffset>)
 }
@@ -834,11 +1148,37 @@
 /// artifact in the form of <path>:<contract>:<version> or <path>:<contract>:<profile> where <contract> and
 /// <version>/<profile> parts are optional.
 /// Reverts if the target artifact contains unlinked library placeholders.
+/// Additionally accepts abi-encoded constructor arguments.
+/// Consumes `elements` ABI-encoded words of string, bytes from the stack and pushes address: vm.deployCode(string,bytes)
+/// Overwrites the calldata and the return data in memory from memoryOffset.
+#define macro VM_DEPLOY_CODE_STRING_BYTES(elements, memoryOffset) = takes(0) returns(1) {
+    __RIGHTPAD(__FUNC_SIG('deployCode(string,bytes)'))
+    CALL_VM(<elements>, 0x20, <memoryOffset>)
+    <memoryOffset> mload
+}
+
+/// Deploys a contract from an artifact file. Takes in the relative path to the json file or the path to the
+/// artifact in the form of <path>:<contract>:<version> or <path>:<contract>:<profile> where <contract> and
+/// <version>/<profile> parts are optional.
+/// Reverts if the target artifact contains unlinked library placeholders.
 /// Additionally accepts `msg.value`.
 /// Consumes `elements` ABI-encoded words of string, uint256 from the stack and pushes address: vm.deployCode(string,uint256)
 /// Overwrites the calldata and the return data in memory from memoryOffset.
 #define macro VM_DEPLOY_CODE_STRING_UINT256(elements, memoryOffset) = takes(0) returns(1) {
     __RIGHTPAD(__FUNC_SIG('deployCode(string,uint256)'))
+    CALL_VM(<elements>, 0x20, <memoryOffset>)
+    <memoryOffset> mload
+}
+
+/// Deploys a contract from an artifact file. Takes in the relative path to the json file or the path to the
+/// artifact in the form of <path>:<contract>:<version> or <path>:<contract>:<profile> where <contract> and
+/// <version>/<profile> parts are optional.
+/// Reverts if the target artifact contains unlinked library placeholders.
+/// Additionally accepts abi-encoded constructor arguments and `msg.value`.
+/// Consumes `elements` ABI-encoded words of string, bytes, uint256 from the stack and pushes address: vm.deployCode(string,bytes,uint256)
+/// Overwrites the calldata and the return data in memory from memoryOffset.
+#define macro VM_DEPLOY_CODE_STRING_BYTES_UINT256(elements, memoryOffset) = takes(0) returns(1) {
+    __RIGHTPAD(__FUNC_SIG('deployCode(string,bytes,uint256)'))
     CALL_VM(<elements>, 0x20, <memoryOffset>)
     <memoryOffset> mload
 }
@@ -851,6 +1191,45 @@
 /// Overwrites the calldata and the return data in memory from memoryOffset.
 #define macro VM_DEPLOY_CODE_STRING_BYTES32(elements, memoryOffset) = takes(0) returns(1) {
     __RIGHTPAD(__FUNC_SIG('deployCode(string,bytes32)'))
+    CALL_VM(<elements>, 0x20, <memoryOffset>)
+    <memoryOffset> mload
+}
+
+/// Deploys a contract from an artifact file, using the CREATE2 salt. Takes in the relative path to the json file or the path to the
+/// artifact in the form of <path>:<contract>:<version> or <path>:<contract>:<profile> where <contract> and
+/// <version>/<profile> parts are optional.
+/// Reverts if the target artifact contains unlinked library placeholders.
+/// Additionally accepts abi-encoded constructor arguments.
+/// Consumes `elements` ABI-encoded words of string, bytes, bytes32 from the stack and pushes address: vm.deployCode(string,bytes,bytes32)
+/// Overwrites the calldata and the return data in memory from memoryOffset.
+#define macro VM_DEPLOY_CODE_STRING_BYTES_BYTES32(elements, memoryOffset) = takes(0) returns(1) {
+    __RIGHTPAD(__FUNC_SIG('deployCode(string,bytes,bytes32)'))
+    CALL_VM(<elements>, 0x20, <memoryOffset>)
+    <memoryOffset> mload
+}
+
+/// Deploys a contract from an artifact file, using the CREATE2 salt. Takes in the relative path to the json file or the path to the
+/// artifact in the form of <path>:<contract>:<version> or <path>:<contract>:<profile> where <contract> and
+/// <version>/<profile> parts are optional.
+/// Reverts if the target artifact contains unlinked library placeholders.
+/// Additionally accepts `msg.value`.
+/// Consumes `elements` ABI-encoded words of string, uint256, bytes32 from the stack and pushes address: vm.deployCode(string,uint256,bytes32)
+/// Overwrites the calldata and the return data in memory from memoryOffset.
+#define macro VM_DEPLOY_CODE_STRING_UINT256_BYTES32(elements, memoryOffset) = takes(0) returns(1) {
+    __RIGHTPAD(__FUNC_SIG('deployCode(string,uint256,bytes32)'))
+    CALL_VM(<elements>, 0x20, <memoryOffset>)
+    <memoryOffset> mload
+}
+
+/// Deploys a contract from an artifact file, using the CREATE2 salt. Takes in the relative path to the json file or the path to the
+/// artifact in the form of <path>:<contract>:<version> or <path>:<contract>:<profile> where <contract> and
+/// <version>/<profile> parts are optional.
+/// Reverts if the target artifact contains unlinked library placeholders.
+/// Additionally accepts abi-encoded constructor arguments and `msg.value`.
+/// Consumes `elements` ABI-encoded words of string, bytes, uint256, bytes32 from the stack and pushes address: vm.deployCode(string,bytes,uint256,bytes32)
+/// Overwrites the calldata and the return data in memory from memoryOffset.
+#define macro VM_DEPLOY_CODE_STRING_BYTES_UINT256_BYTES32(elements, memoryOffset) = takes(0) returns(1) {
+    __RIGHTPAD(__FUNC_SIG('deployCode(string,bytes,uint256,bytes32)'))
     CALL_VM(<elements>, 0x20, <memoryOffset>)
     <memoryOffset> mload
 }
@@ -927,6 +1306,38 @@
     COPY_VM_RETURN_DATA(<memoryOffset>)
 }
 
+/// Returns the most recent broadcast for the given contract on `chainId` matching `txType`.
+/// For example:
+/// The most recent deployment can be fetched by passing `txType` as `CREATE` or `CREATE2`.
+/// The most recent call can be fetched by passing `txType` as `CALL`.
+/// Consumes `elements` ABI-encoded words of string, uint64, uint8 from the stack, writes the ABI-encoded BroadcastTxSummary to memoryOffset and pushes its size: vm.getBroadcast(string,uint64,uint8)
+/// Overwrites the calldata and the return data in memory from memoryOffset.
+#define macro VM_GET_BROADCAST(elements, memoryOffset) = takes(0) returns(1) {
+    __RIGHTPAD(__FUNC_SIG('getBroadcast(string,uint64,uint8)'))
+    CALL_VM(<elements>, 0x00, <memoryOffset>)
+    COPY_VM_RETURN_DATA(<memoryOffset>)
+}
+
+/// Returns all broadcasts for the given contract on `chainId` with the specified `txType`.
+/// Sorted such that the most recent broadcast is the first element, and the oldest is the last. i.e descending order of BroadcastTxSummary.blockNumber.
+/// Consumes `elements` ABI-encoded words of string, uint64, uint8 from the stack, writes the ABI-encoded BroadcastTxSummary[] to memoryOffset and pushes its size: vm.getBroadcasts(string,uint64,uint8)
+/// Overwrites the calldata and the return data in memory from memoryOffset.
+#define macro VM_GET_BROADCASTS_STRING_UINT64_UINT8(elements, memoryOffset) = takes(0) returns(1) {
+    __RIGHTPAD(__FUNC_SIG('getBroadcasts(string,uint64,uint8)'))
+    CALL_VM(<elements>, 0x00, <memoryOffset>)
+    COPY_VM_RETURN_DATA(<memoryOffset>)
+}
+
+/// Returns all broadcasts for the given contract on `chainId`.
+/// Sorted such that the most recent broadcast is the first element, and the oldest is the last. i.e descending order of BroadcastTxSummary.blockNumber.
+/// Consumes `elements` ABI-encoded words of string, uint64 from the stack, writes the ABI-encoded BroadcastTxSummary[] to memoryOffset and pushes its size: vm.getBroadcasts(string,uint64)
+/// Overwrites the calldata and the return data in memory from memoryOffset.
+#define macro VM_GET_BROADCASTS_STRING_UINT64(elements, memoryOffset) = takes(0) returns(1) {
+    __RIGHTPAD(__FUNC_SIG('getBroadcasts(string,uint64)'))
+    CALL_VM(<elements>, 0x00, <memoryOffset>)
+    COPY_VM_RETURN_DATA(<memoryOffset>)
+}
+
 /// Gets the creation bytecode from an artifact file. Takes in the relative path to the json file or the path to the
 /// artifact in the form of <path>:<contract>:<version> or <path>:<contract>:<profile> where <contract> and
 /// <version>/<profile> parts are optional. Use <profile> to select artifacts compiled with a specific profile
@@ -966,6 +1377,17 @@
     __RIGHTPAD(__FUNC_SIG('getDeployment(string,uint64)'))
     CALL_VM(<elements>, 0x20, <memoryOffset>)
     <memoryOffset> mload
+}
+
+/// Returns all deployments for the given contract on `chainId`
+/// Sorted in descending order of deployment time i.e descending order of BroadcastTxSummary.blockNumber.
+/// The most recent deployment is the first element, and the oldest is the last.
+/// Consumes `elements` ABI-encoded words of string, uint64 from the stack, writes the ABI-encoded address[] to memoryOffset and pushes its size: vm.getDeployments(string,uint64)
+/// Overwrites the calldata and the return data in memory from memoryOffset.
+#define macro VM_GET_DEPLOYMENTS(elements, memoryOffset) = takes(0) returns(1) {
+    __RIGHTPAD(__FUNC_SIG('getDeployments(string,uint64)'))
+    CALL_VM(<elements>, 0x00, <memoryOffset>)
+    COPY_VM_RETURN_DATA(<memoryOffset>)
 }
 
 /// Gets all function selectors from a contract artifact. Takes in the relative path to the json file or the path to the
@@ -1066,6 +1488,15 @@
 /// Overwrites the calldata and the return data in memory from memoryOffset.
 #define macro VM_READ_DIR_STRING_UINT64(elements, memoryOffset) = takes(0) returns(1) {
     __RIGHTPAD(__FUNC_SIG('readDir(string,uint64)'))
+    CALL_VM(<elements>, 0x00, <memoryOffset>)
+    COPY_VM_RETURN_DATA(<memoryOffset>)
+}
+
+/// See `readDir(string)`.
+/// Consumes `elements` ABI-encoded words of string, uint64, bool from the stack, writes the ABI-encoded DirEntry[] to memoryOffset and pushes its size: vm.readDir(string,uint64,bool)
+/// Overwrites the calldata and the return data in memory from memoryOffset.
+#define macro VM_READ_DIR_STRING_UINT64_BOOL(elements, memoryOffset) = takes(0) returns(1) {
+    __RIGHTPAD(__FUNC_SIG('readDir(string,uint64,bool)'))
     CALL_VM(<elements>, 0x00, <memoryOffset>)
     COPY_VM_RETURN_DATA(<memoryOffset>)
 }
@@ -1199,11 +1630,29 @@
     COPY_VM_RETURN_DATA(<memoryOffset>)
 }
 
+/// Parses a string of JSON data at `key` and coerces it to `address[]`, or returns `defaultValue` if the key does not exist.
+/// Consumes `elements` ABI-encoded words of string, string, address[] from the stack, writes the ABI-encoded address[] to memoryOffset and pushes its size: vm.parseJsonAddressArray(string,string,address[])
+/// Overwrites the calldata and the return data in memory from memoryOffset.
+#define macro VM_PARSE_JSON_ADDRESS_ARRAY_STRING_STRING_ADDRESS_ARRAY(elements, memoryOffset) = takes(0) returns(1) {
+    __RIGHTPAD(__FUNC_SIG('parseJsonAddressArray(string,string,address[])'))
+    CALL_VM(<elements>, 0x00, <memoryOffset>)
+    COPY_VM_RETURN_DATA(<memoryOffset>)
+}
+
 /// Parses a string of JSON data at `key` and coerces it to `address`.
 /// Consumes `elements` ABI-encoded words of string, string from the stack and pushes address: vm.parseJsonAddress(string,string)
 /// Overwrites the calldata and the return data in memory from memoryOffset.
 #define macro VM_PARSE_JSON_ADDRESS(elements, memoryOffset) = takes(0) returns(1) {
     __RIGHTPAD(__FUNC_SIG('parseJsonAddress(string,string)'))
+    CALL_VM(<elements>, 0x20, <memoryOffset>)
+    <memoryOffset> mload
+}
+
+/// Parses a string of JSON data at `key` and coerces it to `address`, or returns `defaultValue` if the key does not exist.
+/// Consumes `elements` ABI-encoded words of string, string, address from the stack and pushes address: vm.parseJsonAddress(string,string,address)
+/// Overwrites the calldata and the return data in memory from memoryOffset.
+#define macro VM_PARSE_JSON_ADDRESS_STRING_STRING_ADDRESS(elements, memoryOffset) = takes(0) returns(1) {
+    __RIGHTPAD(__FUNC_SIG('parseJsonAddress(string,string,address)'))
     CALL_VM(<elements>, 0x20, <memoryOffset>)
     <memoryOffset> mload
 }
@@ -1222,6 +1671,15 @@
 /// Overwrites the calldata and the return data in memory from memoryOffset.
 #define macro VM_PARSE_JSON_BOOL_ARRAY(elements, memoryOffset) = takes(0) returns(1) {
     __RIGHTPAD(__FUNC_SIG('parseJsonBoolArray(string,string)'))
+    CALL_VM(<elements>, 0x00, <memoryOffset>)
+    COPY_VM_RETURN_DATA(<memoryOffset>)
+}
+
+/// Parses a string of JSON data at `key` and coerces it to `bool[]`, or returns `defaultValue` if the key does not exist.
+/// Consumes `elements` ABI-encoded words of string, string, bool[] from the stack, writes the ABI-encoded bool[] to memoryOffset and pushes its size: vm.parseJsonBoolArray(string,string,bool[])
+/// Overwrites the calldata and the return data in memory from memoryOffset.
+#define macro VM_PARSE_JSON_BOOL_ARRAY_STRING_STRING_BOOL_ARRAY(elements, memoryOffset) = takes(0) returns(1) {
+    __RIGHTPAD(__FUNC_SIG('parseJsonBoolArray(string,string,bool[])'))
     CALL_VM(<elements>, 0x00, <memoryOffset>)
     COPY_VM_RETURN_DATA(<memoryOffset>)
 }
@@ -1253,11 +1711,29 @@
     COPY_VM_RETURN_DATA(<memoryOffset>)
 }
 
+/// Parses a string of JSON data at `key` and coerces it to `bytes32[]`, or returns `defaultValue` if the key does not exist.
+/// Consumes `elements` ABI-encoded words of string, string, bytes32[] from the stack, writes the ABI-encoded bytes32[] to memoryOffset and pushes its size: vm.parseJsonBytes32Array(string,string,bytes32[])
+/// Overwrites the calldata and the return data in memory from memoryOffset.
+#define macro VM_PARSE_JSON_BYTES32_ARRAY_STRING_STRING_BYTES32_ARRAY(elements, memoryOffset) = takes(0) returns(1) {
+    __RIGHTPAD(__FUNC_SIG('parseJsonBytes32Array(string,string,bytes32[])'))
+    CALL_VM(<elements>, 0x00, <memoryOffset>)
+    COPY_VM_RETURN_DATA(<memoryOffset>)
+}
+
 /// Parses a string of JSON data at `key` and coerces it to `bytes32`.
 /// Consumes `elements` ABI-encoded words of string, string from the stack and pushes bytes32: vm.parseJsonBytes32(string,string)
 /// Overwrites the calldata and the return data in memory from memoryOffset.
 #define macro VM_PARSE_JSON_BYTES32(elements, memoryOffset) = takes(0) returns(1) {
     __RIGHTPAD(__FUNC_SIG('parseJsonBytes32(string,string)'))
+    CALL_VM(<elements>, 0x20, <memoryOffset>)
+    <memoryOffset> mload
+}
+
+/// Parses a string of JSON data at `key` and coerces it to `bytes32`, or returns `defaultValue` if the key does not exist.
+/// Consumes `elements` ABI-encoded words of string, string, bytes32 from the stack and pushes bytes32: vm.parseJsonBytes32(string,string,bytes32)
+/// Overwrites the calldata and the return data in memory from memoryOffset.
+#define macro VM_PARSE_JSON_BYTES32_STRING_STRING_BYTES32(elements, memoryOffset) = takes(0) returns(1) {
+    __RIGHTPAD(__FUNC_SIG('parseJsonBytes32(string,string,bytes32)'))
     CALL_VM(<elements>, 0x20, <memoryOffset>)
     <memoryOffset> mload
 }
@@ -1271,6 +1747,15 @@
     COPY_VM_RETURN_DATA(<memoryOffset>)
 }
 
+/// Parses a string of JSON data at `key` and coerces it to `bytes[]`, or returns `defaultValue` if the key does not exist.
+/// Consumes `elements` ABI-encoded words of string, string, bytes[] from the stack, writes the ABI-encoded bytes[] to memoryOffset and pushes its size: vm.parseJsonBytesArray(string,string,bytes[])
+/// Overwrites the calldata and the return data in memory from memoryOffset.
+#define macro VM_PARSE_JSON_BYTES_ARRAY_STRING_STRING_BYTES_ARRAY(elements, memoryOffset) = takes(0) returns(1) {
+    __RIGHTPAD(__FUNC_SIG('parseJsonBytesArray(string,string,bytes[])'))
+    CALL_VM(<elements>, 0x00, <memoryOffset>)
+    COPY_VM_RETURN_DATA(<memoryOffset>)
+}
+
 /// Parses a string of JSON data at `key` and coerces it to `bytes`.
 /// Consumes `elements` ABI-encoded words of string, string from the stack, writes the ABI-encoded bytes to memoryOffset and pushes its size: vm.parseJsonBytes(string,string)
 /// Overwrites the calldata and the return data in memory from memoryOffset.
@@ -1280,11 +1765,29 @@
     COPY_VM_RETURN_DATA(<memoryOffset>)
 }
 
+/// Parses a string of JSON data at `key` and coerces it to `bytes`, or returns `defaultValue` if the key does not exist.
+/// Consumes `elements` ABI-encoded words of string, string, bytes from the stack, writes the ABI-encoded bytes to memoryOffset and pushes its size: vm.parseJsonBytes(string,string,bytes)
+/// Overwrites the calldata and the return data in memory from memoryOffset.
+#define macro VM_PARSE_JSON_BYTES_STRING_STRING_BYTES(elements, memoryOffset) = takes(0) returns(1) {
+    __RIGHTPAD(__FUNC_SIG('parseJsonBytes(string,string,bytes)'))
+    CALL_VM(<elements>, 0x00, <memoryOffset>)
+    COPY_VM_RETURN_DATA(<memoryOffset>)
+}
+
 /// Parses a string of JSON data at `key` and coerces it to `int256[]`.
 /// Consumes `elements` ABI-encoded words of string, string from the stack, writes the ABI-encoded int256[] to memoryOffset and pushes its size: vm.parseJsonIntArray(string,string)
 /// Overwrites the calldata and the return data in memory from memoryOffset.
 #define macro VM_PARSE_JSON_INT_ARRAY(elements, memoryOffset) = takes(0) returns(1) {
     __RIGHTPAD(__FUNC_SIG('parseJsonIntArray(string,string)'))
+    CALL_VM(<elements>, 0x00, <memoryOffset>)
+    COPY_VM_RETURN_DATA(<memoryOffset>)
+}
+
+/// Parses a string of JSON data at `key` and coerces it to `int256[]`, or returns `defaultValue` if the key does not exist.
+/// Consumes `elements` ABI-encoded words of string, string, int256[] from the stack, writes the ABI-encoded int256[] to memoryOffset and pushes its size: vm.parseJsonIntArray(string,string,int256[])
+/// Overwrites the calldata and the return data in memory from memoryOffset.
+#define macro VM_PARSE_JSON_INT_ARRAY_STRING_STRING_INT256_ARRAY(elements, memoryOffset) = takes(0) returns(1) {
+    __RIGHTPAD(__FUNC_SIG('parseJsonIntArray(string,string,int256[])'))
     CALL_VM(<elements>, 0x00, <memoryOffset>)
     COPY_VM_RETURN_DATA(<memoryOffset>)
 }
@@ -1325,11 +1828,38 @@
     COPY_VM_RETURN_DATA(<memoryOffset>)
 }
 
+/// Parses a string of JSON data at `key` and coerces it to `string[]`, or returns `defaultValue` if the key does not exist.
+/// Consumes `elements` ABI-encoded words of string, string, string[] from the stack, writes the ABI-encoded string[] to memoryOffset and pushes its size: vm.parseJsonStringArray(string,string,string[])
+/// Overwrites the calldata and the return data in memory from memoryOffset.
+#define macro VM_PARSE_JSON_STRING_ARRAY_STRING_STRING_STRING_ARRAY(elements, memoryOffset) = takes(0) returns(1) {
+    __RIGHTPAD(__FUNC_SIG('parseJsonStringArray(string,string,string[])'))
+    CALL_VM(<elements>, 0x00, <memoryOffset>)
+    COPY_VM_RETURN_DATA(<memoryOffset>)
+}
+
 /// Parses a string of JSON data at `key` and coerces it to `string`.
 /// Consumes `elements` ABI-encoded words of string, string from the stack, writes the ABI-encoded string to memoryOffset and pushes its size: vm.parseJsonString(string,string)
 /// Overwrites the calldata and the return data in memory from memoryOffset.
 #define macro VM_PARSE_JSON_STRING(elements, memoryOffset) = takes(0) returns(1) {
     __RIGHTPAD(__FUNC_SIG('parseJsonString(string,string)'))
+    CALL_VM(<elements>, 0x00, <memoryOffset>)
+    COPY_VM_RETURN_DATA(<memoryOffset>)
+}
+
+/// Parses a string of JSON data at `key` and coerces it to `string`, or returns `defaultValue` if the key does not exist.
+/// Consumes `elements` ABI-encoded words of string, string, string from the stack, writes the ABI-encoded string to memoryOffset and pushes its size: vm.parseJsonString(string,string,string)
+/// Overwrites the calldata and the return data in memory from memoryOffset.
+#define macro VM_PARSE_JSON_STRING_STRING_STRING_STRING(elements, memoryOffset) = takes(0) returns(1) {
+    __RIGHTPAD(__FUNC_SIG('parseJsonString(string,string,string)'))
+    CALL_VM(<elements>, 0x00, <memoryOffset>)
+    COPY_VM_RETURN_DATA(<memoryOffset>)
+}
+
+/// Parses a string of JSON data at `key` and coerces it to type array corresponding to `typeDescription`.
+/// Consumes `elements` ABI-encoded words of string, string, string from the stack, writes the ABI-encoded bytes to memoryOffset and pushes its size: vm.parseJsonTypeArray(string,string,string)
+/// Overwrites the calldata and the return data in memory from memoryOffset.
+#define macro VM_PARSE_JSON_TYPE_ARRAY(elements, memoryOffset) = takes(0) returns(1) {
+    __RIGHTPAD(__FUNC_SIG('parseJsonTypeArray(string,string,string)'))
     CALL_VM(<elements>, 0x00, <memoryOffset>)
     COPY_VM_RETURN_DATA(<memoryOffset>)
 }
@@ -1343,6 +1873,15 @@
     COPY_VM_RETURN_DATA(<memoryOffset>)
 }
 
+/// Parses a string of JSON data at `key` and coerces it to type corresponding to `typeDescription`.
+/// Consumes `elements` ABI-encoded words of string, string, string from the stack, writes the ABI-encoded bytes to memoryOffset and pushes its size: vm.parseJsonType(string,string,string)
+/// Overwrites the calldata and the return data in memory from memoryOffset.
+#define macro VM_PARSE_JSON_TYPE_STRING_STRING_STRING(elements, memoryOffset) = takes(0) returns(1) {
+    __RIGHTPAD(__FUNC_SIG('parseJsonType(string,string,string)'))
+    CALL_VM(<elements>, 0x00, <memoryOffset>)
+    COPY_VM_RETURN_DATA(<memoryOffset>)
+}
+
 /// Parses a string of JSON data at `key` and coerces it to `uint256[]`.
 /// Consumes `elements` ABI-encoded words of string, string from the stack, writes the ABI-encoded uint256[] to memoryOffset and pushes its size: vm.parseJsonUintArray(string,string)
 /// Overwrites the calldata and the return data in memory from memoryOffset.
@@ -1352,11 +1891,29 @@
     COPY_VM_RETURN_DATA(<memoryOffset>)
 }
 
+/// Parses a string of JSON data at `key` and coerces it to `uint256[]`, or returns `defaultValue` if the key does not exist.
+/// Consumes `elements` ABI-encoded words of string, string, uint256[] from the stack, writes the ABI-encoded uint256[] to memoryOffset and pushes its size: vm.parseJsonUintArray(string,string,uint256[])
+/// Overwrites the calldata and the return data in memory from memoryOffset.
+#define macro VM_PARSE_JSON_UINT_ARRAY_STRING_STRING_UINT256_ARRAY(elements, memoryOffset) = takes(0) returns(1) {
+    __RIGHTPAD(__FUNC_SIG('parseJsonUintArray(string,string,uint256[])'))
+    CALL_VM(<elements>, 0x00, <memoryOffset>)
+    COPY_VM_RETURN_DATA(<memoryOffset>)
+}
+
 /// Parses a string of JSON data at `key` and coerces it to `uint256`.
 /// Consumes `elements` ABI-encoded words of string, string from the stack and pushes uint256: vm.parseJsonUint(string,string)
 /// Overwrites the calldata and the return data in memory from memoryOffset.
 #define macro VM_PARSE_JSON_UINT(elements, memoryOffset) = takes(0) returns(1) {
     __RIGHTPAD(__FUNC_SIG('parseJsonUint(string,string)'))
+    CALL_VM(<elements>, 0x20, <memoryOffset>)
+    <memoryOffset> mload
+}
+
+/// Parses a string of JSON data at `key` and coerces it to `uint256`, or returns `defaultValue` if the key does not exist.
+/// Consumes `elements` ABI-encoded words of string, string, uint256 from the stack and pushes uint256: vm.parseJsonUint(string,string,uint256)
+/// Overwrites the calldata and the return data in memory from memoryOffset.
+#define macro VM_PARSE_JSON_UINT_STRING_STRING_UINT256(elements, memoryOffset) = takes(0) returns(1) {
+    __RIGHTPAD(__FUNC_SIG('parseJsonUint(string,string,uint256)'))
     CALL_VM(<elements>, 0x20, <memoryOffset>)
     <memoryOffset> mload
 }
@@ -1379,12 +1936,165 @@
     COPY_VM_RETURN_DATA(<memoryOffset>)
 }
 
+/// See `serializeJson`.
+/// Consumes `elements` ABI-encoded words of string, string, address from the stack, writes the ABI-encoded string to memoryOffset and pushes its size: vm.serializeAddress(string,string,address)
+/// Overwrites the calldata and the return data in memory from memoryOffset.
+#define macro VM_SERIALIZE_ADDRESS_STRING_STRING_ADDRESS(elements, memoryOffset) = takes(0) returns(1) {
+    __RIGHTPAD(__FUNC_SIG('serializeAddress(string,string,address)'))
+    CALL_VM(<elements>, 0x00, <memoryOffset>)
+    COPY_VM_RETURN_DATA(<memoryOffset>)
+}
+
+/// See `serializeJson`.
+/// Consumes `elements` ABI-encoded words of string, string, address[] from the stack, writes the ABI-encoded string to memoryOffset and pushes its size: vm.serializeAddress(string,string,address[])
+/// Overwrites the calldata and the return data in memory from memoryOffset.
+#define macro VM_SERIALIZE_ADDRESS_STRING_STRING_ADDRESS_ARRAY(elements, memoryOffset) = takes(0) returns(1) {
+    __RIGHTPAD(__FUNC_SIG('serializeAddress(string,string,address[])'))
+    CALL_VM(<elements>, 0x00, <memoryOffset>)
+    COPY_VM_RETURN_DATA(<memoryOffset>)
+}
+
+/// See `serializeJson`.
+/// Consumes `elements` ABI-encoded words of string, string, bool from the stack, writes the ABI-encoded string to memoryOffset and pushes its size: vm.serializeBool(string,string,bool)
+/// Overwrites the calldata and the return data in memory from memoryOffset.
+#define macro VM_SERIALIZE_BOOL_STRING_STRING_BOOL(elements, memoryOffset) = takes(0) returns(1) {
+    __RIGHTPAD(__FUNC_SIG('serializeBool(string,string,bool)'))
+    CALL_VM(<elements>, 0x00, <memoryOffset>)
+    COPY_VM_RETURN_DATA(<memoryOffset>)
+}
+
+/// See `serializeJson`.
+/// Consumes `elements` ABI-encoded words of string, string, bool[] from the stack, writes the ABI-encoded string to memoryOffset and pushes its size: vm.serializeBool(string,string,bool[])
+/// Overwrites the calldata and the return data in memory from memoryOffset.
+#define macro VM_SERIALIZE_BOOL_STRING_STRING_BOOL_ARRAY(elements, memoryOffset) = takes(0) returns(1) {
+    __RIGHTPAD(__FUNC_SIG('serializeBool(string,string,bool[])'))
+    CALL_VM(<elements>, 0x00, <memoryOffset>)
+    COPY_VM_RETURN_DATA(<memoryOffset>)
+}
+
+/// See `serializeJson`.
+/// Consumes `elements` ABI-encoded words of string, string, bytes32 from the stack, writes the ABI-encoded string to memoryOffset and pushes its size: vm.serializeBytes32(string,string,bytes32)
+/// Overwrites the calldata and the return data in memory from memoryOffset.
+#define macro VM_SERIALIZE_BYTES32_STRING_STRING_BYTES32(elements, memoryOffset) = takes(0) returns(1) {
+    __RIGHTPAD(__FUNC_SIG('serializeBytes32(string,string,bytes32)'))
+    CALL_VM(<elements>, 0x00, <memoryOffset>)
+    COPY_VM_RETURN_DATA(<memoryOffset>)
+}
+
+/// See `serializeJson`.
+/// Consumes `elements` ABI-encoded words of string, string, bytes32[] from the stack, writes the ABI-encoded string to memoryOffset and pushes its size: vm.serializeBytes32(string,string,bytes32[])
+/// Overwrites the calldata and the return data in memory from memoryOffset.
+#define macro VM_SERIALIZE_BYTES32_STRING_STRING_BYTES32_ARRAY(elements, memoryOffset) = takes(0) returns(1) {
+    __RIGHTPAD(__FUNC_SIG('serializeBytes32(string,string,bytes32[])'))
+    CALL_VM(<elements>, 0x00, <memoryOffset>)
+    COPY_VM_RETURN_DATA(<memoryOffset>)
+}
+
+/// See `serializeJson`.
+/// Consumes `elements` ABI-encoded words of string, string, bytes from the stack, writes the ABI-encoded string to memoryOffset and pushes its size: vm.serializeBytes(string,string,bytes)
+/// Overwrites the calldata and the return data in memory from memoryOffset.
+#define macro VM_SERIALIZE_BYTES_STRING_STRING_BYTES(elements, memoryOffset) = takes(0) returns(1) {
+    __RIGHTPAD(__FUNC_SIG('serializeBytes(string,string,bytes)'))
+    CALL_VM(<elements>, 0x00, <memoryOffset>)
+    COPY_VM_RETURN_DATA(<memoryOffset>)
+}
+
+/// See `serializeJson`.
+/// Consumes `elements` ABI-encoded words of string, string, bytes[] from the stack, writes the ABI-encoded string to memoryOffset and pushes its size: vm.serializeBytes(string,string,bytes[])
+/// Overwrites the calldata and the return data in memory from memoryOffset.
+#define macro VM_SERIALIZE_BYTES_STRING_STRING_BYTES_ARRAY(elements, memoryOffset) = takes(0) returns(1) {
+    __RIGHTPAD(__FUNC_SIG('serializeBytes(string,string,bytes[])'))
+    CALL_VM(<elements>, 0x00, <memoryOffset>)
+    COPY_VM_RETURN_DATA(<memoryOffset>)
+}
+
+/// See `serializeJson`.
+/// Consumes `elements` ABI-encoded words of string, string, int256 from the stack, writes the ABI-encoded string to memoryOffset and pushes its size: vm.serializeInt(string,string,int256)
+/// Overwrites the calldata and the return data in memory from memoryOffset.
+#define macro VM_SERIALIZE_INT_STRING_STRING_INT256(elements, memoryOffset) = takes(0) returns(1) {
+    __RIGHTPAD(__FUNC_SIG('serializeInt(string,string,int256)'))
+    CALL_VM(<elements>, 0x00, <memoryOffset>)
+    COPY_VM_RETURN_DATA(<memoryOffset>)
+}
+
+/// See `serializeJson`.
+/// Consumes `elements` ABI-encoded words of string, string, int256[] from the stack, writes the ABI-encoded string to memoryOffset and pushes its size: vm.serializeInt(string,string,int256[])
+/// Overwrites the calldata and the return data in memory from memoryOffset.
+#define macro VM_SERIALIZE_INT_STRING_STRING_INT256_ARRAY(elements, memoryOffset) = takes(0) returns(1) {
+    __RIGHTPAD(__FUNC_SIG('serializeInt(string,string,int256[])'))
+    CALL_VM(<elements>, 0x00, <memoryOffset>)
+    COPY_VM_RETURN_DATA(<memoryOffset>)
+}
+
 /// Serializes a key and value to a JSON object stored in-memory that can be later written to a file.
 /// Returns the stringified version of the specific JSON file up to that moment.
 /// Consumes `elements` ABI-encoded words of string, string from the stack, writes the ABI-encoded string to memoryOffset and pushes its size: vm.serializeJson(string,string)
 /// Overwrites the calldata and the return data in memory from memoryOffset.
 #define macro VM_SERIALIZE_JSON(elements, memoryOffset) = takes(0) returns(1) {
     __RIGHTPAD(__FUNC_SIG('serializeJson(string,string)'))
+    CALL_VM(<elements>, 0x00, <memoryOffset>)
+    COPY_VM_RETURN_DATA(<memoryOffset>)
+}
+
+/// See `serializeJson`.
+/// Consumes `elements` ABI-encoded words of string, bytes from the stack, writes the ABI-encoded string to memoryOffset and pushes its size: vm.serializeJsonType(string,bytes)
+/// Overwrites the calldata and the return data in memory from memoryOffset.
+#define macro VM_SERIALIZE_JSON_TYPE_STRING_BYTES(elements, memoryOffset) = takes(0) returns(1) {
+    __RIGHTPAD(__FUNC_SIG('serializeJsonType(string,bytes)'))
+    CALL_VM(<elements>, 0x00, <memoryOffset>)
+    COPY_VM_RETURN_DATA(<memoryOffset>)
+}
+
+/// See `serializeJson`.
+/// Consumes `elements` ABI-encoded words of string, string, string, bytes from the stack, writes the ABI-encoded string to memoryOffset and pushes its size: vm.serializeJsonType(string,string,string,bytes)
+/// Overwrites the calldata and the return data in memory from memoryOffset.
+#define macro VM_SERIALIZE_JSON_TYPE_STRING_STRING_STRING_BYTES(elements, memoryOffset) = takes(0) returns(1) {
+    __RIGHTPAD(__FUNC_SIG('serializeJsonType(string,string,string,bytes)'))
+    CALL_VM(<elements>, 0x00, <memoryOffset>)
+    COPY_VM_RETURN_DATA(<memoryOffset>)
+}
+
+/// See `serializeJson`.
+/// Consumes `elements` ABI-encoded words of string, string, string from the stack, writes the ABI-encoded string to memoryOffset and pushes its size: vm.serializeString(string,string,string)
+/// Overwrites the calldata and the return data in memory from memoryOffset.
+#define macro VM_SERIALIZE_STRING_STRING_STRING_STRING(elements, memoryOffset) = takes(0) returns(1) {
+    __RIGHTPAD(__FUNC_SIG('serializeString(string,string,string)'))
+    CALL_VM(<elements>, 0x00, <memoryOffset>)
+    COPY_VM_RETURN_DATA(<memoryOffset>)
+}
+
+/// See `serializeJson`.
+/// Consumes `elements` ABI-encoded words of string, string, string[] from the stack, writes the ABI-encoded string to memoryOffset and pushes its size: vm.serializeString(string,string,string[])
+/// Overwrites the calldata and the return data in memory from memoryOffset.
+#define macro VM_SERIALIZE_STRING_STRING_STRING_STRING_ARRAY(elements, memoryOffset) = takes(0) returns(1) {
+    __RIGHTPAD(__FUNC_SIG('serializeString(string,string,string[])'))
+    CALL_VM(<elements>, 0x00, <memoryOffset>)
+    COPY_VM_RETURN_DATA(<memoryOffset>)
+}
+
+/// See `serializeJson`.
+/// Consumes `elements` ABI-encoded words of string, string, uint256 from the stack, writes the ABI-encoded string to memoryOffset and pushes its size: vm.serializeUintToHex(string,string,uint256)
+/// Overwrites the calldata and the return data in memory from memoryOffset.
+#define macro VM_SERIALIZE_UINT_TO_HEX(elements, memoryOffset) = takes(0) returns(1) {
+    __RIGHTPAD(__FUNC_SIG('serializeUintToHex(string,string,uint256)'))
+    CALL_VM(<elements>, 0x00, <memoryOffset>)
+    COPY_VM_RETURN_DATA(<memoryOffset>)
+}
+
+/// See `serializeJson`.
+/// Consumes `elements` ABI-encoded words of string, string, uint256 from the stack, writes the ABI-encoded string to memoryOffset and pushes its size: vm.serializeUint(string,string,uint256)
+/// Overwrites the calldata and the return data in memory from memoryOffset.
+#define macro VM_SERIALIZE_UINT_STRING_STRING_UINT256(elements, memoryOffset) = takes(0) returns(1) {
+    __RIGHTPAD(__FUNC_SIG('serializeUint(string,string,uint256)'))
+    CALL_VM(<elements>, 0x00, <memoryOffset>)
+    COPY_VM_RETURN_DATA(<memoryOffset>)
+}
+
+/// See `serializeJson`.
+/// Consumes `elements` ABI-encoded words of string, string, uint256[] from the stack, writes the ABI-encoded string to memoryOffset and pushes its size: vm.serializeUint(string,string,uint256[])
+/// Overwrites the calldata and the return data in memory from memoryOffset.
+#define macro VM_SERIALIZE_UINT_STRING_STRING_UINT256_ARRAY(elements, memoryOffset) = takes(0) returns(1) {
+    __RIGHTPAD(__FUNC_SIG('serializeUint(string,string,uint256[])'))
     CALL_VM(<elements>, 0x00, <memoryOffset>)
     COPY_VM_RETURN_DATA(<memoryOffset>)
 }
@@ -1491,6 +2201,15 @@
     <memoryOffset> mload
 }
 
+/// Replaces occurrences of `from` in the given `string` with `to`.
+/// Consumes `elements` ABI-encoded words of string, string, string from the stack, writes the ABI-encoded string to memoryOffset and pushes its size: vm.replace(string,string,string)
+/// Overwrites the calldata and the return data in memory from memoryOffset.
+#define macro VM_REPLACE(elements, memoryOffset) = takes(0) returns(1) {
+    __RIGHTPAD(__FUNC_SIG('replace(string,string,string)'))
+    CALL_VM(<elements>, 0x00, <memoryOffset>)
+    COPY_VM_RETURN_DATA(<memoryOffset>)
+}
+
 /// Splits the given `string` into an array of strings divided by the `delimiter`.
 /// Consumes `elements` ABI-encoded words of string, string from the stack, writes the ABI-encoded string[] to memoryOffset and pushes its size: vm.split(string,string)
 /// Overwrites the calldata and the return data in memory from memoryOffset.
@@ -1590,6 +2309,15 @@
     CALL_VM(0x4, 0x00, <memoryOffset>)
 }
 
+/// Compares two `uint256` values. Expects difference to be less than or equal to `maxDelta`.
+/// Formats values with decimals in failure message. Includes error message into revert string on failure.
+/// Consumes `elements` ABI-encoded words of uint256, uint256, uint256, uint256, string from the stack: vm.assertApproxEqAbsDecimal(uint256,uint256,uint256,uint256,string)
+/// Overwrites the calldata and the return data in memory from memoryOffset.
+#define macro VM_ASSERT_APPROX_EQ_ABS_DECIMAL_UINT256_UINT256_UINT256_UINT256_STRING(elements, memoryOffset) = takes(0) returns(0) {
+    __RIGHTPAD(__FUNC_SIG('assertApproxEqAbsDecimal(uint256,uint256,uint256,uint256,string)'))
+    CALL_VM(<elements>, 0x00, <memoryOffset>)
+}
+
 /// Compares two `int256` values. Expects difference to be less than or equal to `maxDelta`.
 /// Formats values with decimals in failure message.
 /// Consumes int256, int256, uint256, uint256 from the stack: vm.assertApproxEqAbsDecimal(int256,int256,uint256,uint256)
@@ -1597,6 +2325,15 @@
 #define macro VM_ASSERT_APPROX_EQ_ABS_DECIMAL_INT256_INT256_UINT256_UINT256(memoryOffset) = takes(4) returns(0) {
     __RIGHTPAD(__FUNC_SIG('assertApproxEqAbsDecimal(int256,int256,uint256,uint256)'))
     CALL_VM(0x4, 0x00, <memoryOffset>)
+}
+
+/// Compares two `int256` values. Expects difference to be less than or equal to `maxDelta`.
+/// Formats values with decimals in failure message. Includes error message into revert string on failure.
+/// Consumes `elements` ABI-encoded words of int256, int256, uint256, uint256, string from the stack: vm.assertApproxEqAbsDecimal(int256,int256,uint256,uint256,string)
+/// Overwrites the calldata and the return data in memory from memoryOffset.
+#define macro VM_ASSERT_APPROX_EQ_ABS_DECIMAL_INT256_INT256_UINT256_UINT256_STRING(elements, memoryOffset) = takes(0) returns(0) {
+    __RIGHTPAD(__FUNC_SIG('assertApproxEqAbsDecimal(int256,int256,uint256,uint256,string)'))
+    CALL_VM(<elements>, 0x00, <memoryOffset>)
 }
 
 /// Compares two `uint256` values. Expects difference to be less than or equal to `maxDelta`.
@@ -1630,6 +2367,46 @@
 /// Overwrites the calldata and the return data in memory from memoryOffset.
 #define macro VM_ASSERT_APPROX_EQ_ABS_INT256_INT256_UINT256_STRING(elements, memoryOffset) = takes(0) returns(0) {
     __RIGHTPAD(__FUNC_SIG('assertApproxEqAbs(int256,int256,uint256,string)'))
+    CALL_VM(<elements>, 0x00, <memoryOffset>)
+}
+
+/// Compares two `uint256` values. Expects relative difference in percents to be less than or equal to `maxPercentDelta`.
+/// `maxPercentDelta` is an 18 decimal fixed point number, where 1e18 == 100%
+/// Formats values with decimals in failure message.
+/// Consumes uint256, uint256, uint256, uint256 from the stack: vm.assertApproxEqRelDecimal(uint256,uint256,uint256,uint256)
+/// Overwrites 0x84 bytes of memory from memoryOffset.
+#define macro VM_ASSERT_APPROX_EQ_REL_DECIMAL_UINT256_UINT256_UINT256_UINT256(memoryOffset) = takes(4) returns(0) {
+    __RIGHTPAD(__FUNC_SIG('assertApproxEqRelDecimal(uint256,uint256,uint256,uint256)'))
+    CALL_VM(0x4, 0x00, <memoryOffset>)
+}
+
+/// Compares two `uint256` values. Expects relative difference in percents to be less than or equal to `maxPercentDelta`.
+/// `maxPercentDelta` is an 18 decimal fixed point number, where 1e18 == 100%
+/// Formats values with decimals in failure message. Includes error message into revert string on failure.
+/// Consumes `elements` ABI-encoded words of uint256, uint256, uint256, uint256, string from the stack: vm.assertApproxEqRelDecimal(uint256,uint256,uint256,uint256,string)
+/// Overwrites the calldata and the return data in memory from memoryOffset.
+#define macro VM_ASSERT_APPROX_EQ_REL_DECIMAL_UINT256_UINT256_UINT256_UINT256_STRING(elements, memoryOffset) = takes(0) returns(0) {
+    __RIGHTPAD(__FUNC_SIG('assertApproxEqRelDecimal(uint256,uint256,uint256,uint256,string)'))
+    CALL_VM(<elements>, 0x00, <memoryOffset>)
+}
+
+/// Compares two `int256` values. Expects relative difference in percents to be less than or equal to `maxPercentDelta`.
+/// `maxPercentDelta` is an 18 decimal fixed point number, where 1e18 == 100%
+/// Formats values with decimals in failure message.
+/// Consumes int256, int256, uint256, uint256 from the stack: vm.assertApproxEqRelDecimal(int256,int256,uint256,uint256)
+/// Overwrites 0x84 bytes of memory from memoryOffset.
+#define macro VM_ASSERT_APPROX_EQ_REL_DECIMAL_INT256_INT256_UINT256_UINT256(memoryOffset) = takes(4) returns(0) {
+    __RIGHTPAD(__FUNC_SIG('assertApproxEqRelDecimal(int256,int256,uint256,uint256)'))
+    CALL_VM(0x4, 0x00, <memoryOffset>)
+}
+
+/// Compares two `int256` values. Expects relative difference in percents to be less than or equal to `maxPercentDelta`.
+/// `maxPercentDelta` is an 18 decimal fixed point number, where 1e18 == 100%
+/// Formats values with decimals in failure message. Includes error message into revert string on failure.
+/// Consumes `elements` ABI-encoded words of int256, int256, uint256, uint256, string from the stack: vm.assertApproxEqRelDecimal(int256,int256,uint256,uint256,string)
+/// Overwrites the calldata and the return data in memory from memoryOffset.
+#define macro VM_ASSERT_APPROX_EQ_REL_DECIMAL_INT256_INT256_UINT256_UINT256_STRING(elements, memoryOffset) = takes(0) returns(0) {
+    __RIGHTPAD(__FUNC_SIG('assertApproxEqRelDecimal(int256,int256,uint256,uint256,string)'))
     CALL_VM(<elements>, 0x00, <memoryOffset>)
 }
 
@@ -2652,6 +3429,15 @@
     COPY_VM_RETURN_DATA(<memoryOffset>)
 }
 
+/// Parses a string of TOML data at `key` and coerces it to `address[]`, or returns `defaultValue` if the key does not exist.
+/// Consumes `elements` ABI-encoded words of string, string, address[] from the stack, writes the ABI-encoded address[] to memoryOffset and pushes its size: vm.parseTomlAddressArray(string,string,address[])
+/// Overwrites the calldata and the return data in memory from memoryOffset.
+#define macro VM_PARSE_TOML_ADDRESS_ARRAY_STRING_STRING_ADDRESS_ARRAY(elements, memoryOffset) = takes(0) returns(1) {
+    __RIGHTPAD(__FUNC_SIG('parseTomlAddressArray(string,string,address[])'))
+    CALL_VM(<elements>, 0x00, <memoryOffset>)
+    COPY_VM_RETURN_DATA(<memoryOffset>)
+}
+
 /// Parses a string of TOML data at `key` and coerces it to `address`.
 /// Consumes `elements` ABI-encoded words of string, string from the stack and pushes address: vm.parseTomlAddress(string,string)
 /// Overwrites the calldata and the return data in memory from memoryOffset.
@@ -2661,11 +3447,29 @@
     <memoryOffset> mload
 }
 
+/// Parses a string of TOML data at `key` and coerces it to `address`, or returns `defaultValue` if the key does not exist.
+/// Consumes `elements` ABI-encoded words of string, string, address from the stack and pushes address: vm.parseTomlAddress(string,string,address)
+/// Overwrites the calldata and the return data in memory from memoryOffset.
+#define macro VM_PARSE_TOML_ADDRESS_STRING_STRING_ADDRESS(elements, memoryOffset) = takes(0) returns(1) {
+    __RIGHTPAD(__FUNC_SIG('parseTomlAddress(string,string,address)'))
+    CALL_VM(<elements>, 0x20, <memoryOffset>)
+    <memoryOffset> mload
+}
+
 /// Parses a string of TOML data at `key` and coerces it to `bool[]`.
 /// Consumes `elements` ABI-encoded words of string, string from the stack, writes the ABI-encoded bool[] to memoryOffset and pushes its size: vm.parseTomlBoolArray(string,string)
 /// Overwrites the calldata and the return data in memory from memoryOffset.
 #define macro VM_PARSE_TOML_BOOL_ARRAY(elements, memoryOffset) = takes(0) returns(1) {
     __RIGHTPAD(__FUNC_SIG('parseTomlBoolArray(string,string)'))
+    CALL_VM(<elements>, 0x00, <memoryOffset>)
+    COPY_VM_RETURN_DATA(<memoryOffset>)
+}
+
+/// Parses a string of TOML data at `key` and coerces it to `bool[]`, or returns `defaultValue` if the key does not exist.
+/// Consumes `elements` ABI-encoded words of string, string, bool[] from the stack, writes the ABI-encoded bool[] to memoryOffset and pushes its size: vm.parseTomlBoolArray(string,string,bool[])
+/// Overwrites the calldata and the return data in memory from memoryOffset.
+#define macro VM_PARSE_TOML_BOOL_ARRAY_STRING_STRING_BOOL_ARRAY(elements, memoryOffset) = takes(0) returns(1) {
+    __RIGHTPAD(__FUNC_SIG('parseTomlBoolArray(string,string,bool[])'))
     CALL_VM(<elements>, 0x00, <memoryOffset>)
     COPY_VM_RETURN_DATA(<memoryOffset>)
 }
@@ -2697,11 +3501,29 @@
     COPY_VM_RETURN_DATA(<memoryOffset>)
 }
 
+/// Parses a string of TOML data at `key` and coerces it to `bytes32[]`, or returns `defaultValue` if the key does not exist.
+/// Consumes `elements` ABI-encoded words of string, string, bytes32[] from the stack, writes the ABI-encoded bytes32[] to memoryOffset and pushes its size: vm.parseTomlBytes32Array(string,string,bytes32[])
+/// Overwrites the calldata and the return data in memory from memoryOffset.
+#define macro VM_PARSE_TOML_BYTES32_ARRAY_STRING_STRING_BYTES32_ARRAY(elements, memoryOffset) = takes(0) returns(1) {
+    __RIGHTPAD(__FUNC_SIG('parseTomlBytes32Array(string,string,bytes32[])'))
+    CALL_VM(<elements>, 0x00, <memoryOffset>)
+    COPY_VM_RETURN_DATA(<memoryOffset>)
+}
+
 /// Parses a string of TOML data at `key` and coerces it to `bytes32`.
 /// Consumes `elements` ABI-encoded words of string, string from the stack and pushes bytes32: vm.parseTomlBytes32(string,string)
 /// Overwrites the calldata and the return data in memory from memoryOffset.
 #define macro VM_PARSE_TOML_BYTES32(elements, memoryOffset) = takes(0) returns(1) {
     __RIGHTPAD(__FUNC_SIG('parseTomlBytes32(string,string)'))
+    CALL_VM(<elements>, 0x20, <memoryOffset>)
+    <memoryOffset> mload
+}
+
+/// Parses a string of TOML data at `key` and coerces it to `bytes32`, or returns `defaultValue` if the key does not exist.
+/// Consumes `elements` ABI-encoded words of string, string, bytes32 from the stack and pushes bytes32: vm.parseTomlBytes32(string,string,bytes32)
+/// Overwrites the calldata and the return data in memory from memoryOffset.
+#define macro VM_PARSE_TOML_BYTES32_STRING_STRING_BYTES32(elements, memoryOffset) = takes(0) returns(1) {
+    __RIGHTPAD(__FUNC_SIG('parseTomlBytes32(string,string,bytes32)'))
     CALL_VM(<elements>, 0x20, <memoryOffset>)
     <memoryOffset> mload
 }
@@ -2715,6 +3537,15 @@
     COPY_VM_RETURN_DATA(<memoryOffset>)
 }
 
+/// Parses a string of TOML data at `key` and coerces it to `bytes[]`, or returns `defaultValue` if the key does not exist.
+/// Consumes `elements` ABI-encoded words of string, string, bytes[] from the stack, writes the ABI-encoded bytes[] to memoryOffset and pushes its size: vm.parseTomlBytesArray(string,string,bytes[])
+/// Overwrites the calldata and the return data in memory from memoryOffset.
+#define macro VM_PARSE_TOML_BYTES_ARRAY_STRING_STRING_BYTES_ARRAY(elements, memoryOffset) = takes(0) returns(1) {
+    __RIGHTPAD(__FUNC_SIG('parseTomlBytesArray(string,string,bytes[])'))
+    CALL_VM(<elements>, 0x00, <memoryOffset>)
+    COPY_VM_RETURN_DATA(<memoryOffset>)
+}
+
 /// Parses a string of TOML data at `key` and coerces it to `bytes`.
 /// Consumes `elements` ABI-encoded words of string, string from the stack, writes the ABI-encoded bytes to memoryOffset and pushes its size: vm.parseTomlBytes(string,string)
 /// Overwrites the calldata and the return data in memory from memoryOffset.
@@ -2724,11 +3555,29 @@
     COPY_VM_RETURN_DATA(<memoryOffset>)
 }
 
+/// Parses a string of TOML data at `key` and coerces it to `bytes`, or returns `defaultValue` if the key does not exist.
+/// Consumes `elements` ABI-encoded words of string, string, bytes from the stack, writes the ABI-encoded bytes to memoryOffset and pushes its size: vm.parseTomlBytes(string,string,bytes)
+/// Overwrites the calldata and the return data in memory from memoryOffset.
+#define macro VM_PARSE_TOML_BYTES_STRING_STRING_BYTES(elements, memoryOffset) = takes(0) returns(1) {
+    __RIGHTPAD(__FUNC_SIG('parseTomlBytes(string,string,bytes)'))
+    CALL_VM(<elements>, 0x00, <memoryOffset>)
+    COPY_VM_RETURN_DATA(<memoryOffset>)
+}
+
 /// Parses a string of TOML data at `key` and coerces it to `int256[]`.
 /// Consumes `elements` ABI-encoded words of string, string from the stack, writes the ABI-encoded int256[] to memoryOffset and pushes its size: vm.parseTomlIntArray(string,string)
 /// Overwrites the calldata and the return data in memory from memoryOffset.
 #define macro VM_PARSE_TOML_INT_ARRAY(elements, memoryOffset) = takes(0) returns(1) {
     __RIGHTPAD(__FUNC_SIG('parseTomlIntArray(string,string)'))
+    CALL_VM(<elements>, 0x00, <memoryOffset>)
+    COPY_VM_RETURN_DATA(<memoryOffset>)
+}
+
+/// Parses a string of TOML data at `key` and coerces it to `int256[]`, or returns `defaultValue` if the key does not exist.
+/// Consumes `elements` ABI-encoded words of string, string, int256[] from the stack, writes the ABI-encoded int256[] to memoryOffset and pushes its size: vm.parseTomlIntArray(string,string,int256[])
+/// Overwrites the calldata and the return data in memory from memoryOffset.
+#define macro VM_PARSE_TOML_INT_ARRAY_STRING_STRING_INT256_ARRAY(elements, memoryOffset) = takes(0) returns(1) {
+    __RIGHTPAD(__FUNC_SIG('parseTomlIntArray(string,string,int256[])'))
     CALL_VM(<elements>, 0x00, <memoryOffset>)
     COPY_VM_RETURN_DATA(<memoryOffset>)
 }
@@ -2769,11 +3618,38 @@
     COPY_VM_RETURN_DATA(<memoryOffset>)
 }
 
+/// Parses a string of TOML data at `key` and coerces it to `string[]`, or returns `defaultValue` if the key does not exist.
+/// Consumes `elements` ABI-encoded words of string, string, string[] from the stack, writes the ABI-encoded string[] to memoryOffset and pushes its size: vm.parseTomlStringArray(string,string,string[])
+/// Overwrites the calldata and the return data in memory from memoryOffset.
+#define macro VM_PARSE_TOML_STRING_ARRAY_STRING_STRING_STRING_ARRAY(elements, memoryOffset) = takes(0) returns(1) {
+    __RIGHTPAD(__FUNC_SIG('parseTomlStringArray(string,string,string[])'))
+    CALL_VM(<elements>, 0x00, <memoryOffset>)
+    COPY_VM_RETURN_DATA(<memoryOffset>)
+}
+
 /// Parses a string of TOML data at `key` and coerces it to `string`.
 /// Consumes `elements` ABI-encoded words of string, string from the stack, writes the ABI-encoded string to memoryOffset and pushes its size: vm.parseTomlString(string,string)
 /// Overwrites the calldata and the return data in memory from memoryOffset.
 #define macro VM_PARSE_TOML_STRING(elements, memoryOffset) = takes(0) returns(1) {
     __RIGHTPAD(__FUNC_SIG('parseTomlString(string,string)'))
+    CALL_VM(<elements>, 0x00, <memoryOffset>)
+    COPY_VM_RETURN_DATA(<memoryOffset>)
+}
+
+/// Parses a string of TOML data at `key` and coerces it to `string`, or returns `defaultValue` if the key does not exist.
+/// Consumes `elements` ABI-encoded words of string, string, string from the stack, writes the ABI-encoded string to memoryOffset and pushes its size: vm.parseTomlString(string,string,string)
+/// Overwrites the calldata and the return data in memory from memoryOffset.
+#define macro VM_PARSE_TOML_STRING_STRING_STRING_STRING(elements, memoryOffset) = takes(0) returns(1) {
+    __RIGHTPAD(__FUNC_SIG('parseTomlString(string,string,string)'))
+    CALL_VM(<elements>, 0x00, <memoryOffset>)
+    COPY_VM_RETURN_DATA(<memoryOffset>)
+}
+
+/// Parses a string of TOML data at `key` and coerces it to type array corresponding to `typeDescription`.
+/// Consumes `elements` ABI-encoded words of string, string, string from the stack, writes the ABI-encoded bytes to memoryOffset and pushes its size: vm.parseTomlTypeArray(string,string,string)
+/// Overwrites the calldata and the return data in memory from memoryOffset.
+#define macro VM_PARSE_TOML_TYPE_ARRAY(elements, memoryOffset) = takes(0) returns(1) {
+    __RIGHTPAD(__FUNC_SIG('parseTomlTypeArray(string,string,string)'))
     CALL_VM(<elements>, 0x00, <memoryOffset>)
     COPY_VM_RETURN_DATA(<memoryOffset>)
 }
@@ -2787,6 +3663,15 @@
     COPY_VM_RETURN_DATA(<memoryOffset>)
 }
 
+/// Parses a string of TOML data at `key` and coerces it to type corresponding to `typeDescription`.
+/// Consumes `elements` ABI-encoded words of string, string, string from the stack, writes the ABI-encoded bytes to memoryOffset and pushes its size: vm.parseTomlType(string,string,string)
+/// Overwrites the calldata and the return data in memory from memoryOffset.
+#define macro VM_PARSE_TOML_TYPE_STRING_STRING_STRING(elements, memoryOffset) = takes(0) returns(1) {
+    __RIGHTPAD(__FUNC_SIG('parseTomlType(string,string,string)'))
+    CALL_VM(<elements>, 0x00, <memoryOffset>)
+    COPY_VM_RETURN_DATA(<memoryOffset>)
+}
+
 /// Parses a string of TOML data at `key` and coerces it to `uint256[]`.
 /// Consumes `elements` ABI-encoded words of string, string from the stack, writes the ABI-encoded uint256[] to memoryOffset and pushes its size: vm.parseTomlUintArray(string,string)
 /// Overwrites the calldata and the return data in memory from memoryOffset.
@@ -2796,11 +3681,29 @@
     COPY_VM_RETURN_DATA(<memoryOffset>)
 }
 
+/// Parses a string of TOML data at `key` and coerces it to `uint256[]`, or returns `defaultValue` if the key does not exist.
+/// Consumes `elements` ABI-encoded words of string, string, uint256[] from the stack, writes the ABI-encoded uint256[] to memoryOffset and pushes its size: vm.parseTomlUintArray(string,string,uint256[])
+/// Overwrites the calldata and the return data in memory from memoryOffset.
+#define macro VM_PARSE_TOML_UINT_ARRAY_STRING_STRING_UINT256_ARRAY(elements, memoryOffset) = takes(0) returns(1) {
+    __RIGHTPAD(__FUNC_SIG('parseTomlUintArray(string,string,uint256[])'))
+    CALL_VM(<elements>, 0x00, <memoryOffset>)
+    COPY_VM_RETURN_DATA(<memoryOffset>)
+}
+
 /// Parses a string of TOML data at `key` and coerces it to `uint256`.
 /// Consumes `elements` ABI-encoded words of string, string from the stack and pushes uint256: vm.parseTomlUint(string,string)
 /// Overwrites the calldata and the return data in memory from memoryOffset.
 #define macro VM_PARSE_TOML_UINT(elements, memoryOffset) = takes(0) returns(1) {
     __RIGHTPAD(__FUNC_SIG('parseTomlUint(string,string)'))
+    CALL_VM(<elements>, 0x20, <memoryOffset>)
+    <memoryOffset> mload
+}
+
+/// Parses a string of TOML data at `key` and coerces it to `uint256`, or returns `defaultValue` if the key does not exist.
+/// Consumes `elements` ABI-encoded words of string, string, uint256 from the stack and pushes uint256: vm.parseTomlUint(string,string,uint256)
+/// Overwrites the calldata and the return data in memory from memoryOffset.
+#define macro VM_PARSE_TOML_UINT_STRING_STRING_UINT256(elements, memoryOffset) = takes(0) returns(1) {
+    __RIGHTPAD(__FUNC_SIG('parseTomlUint(string,string,uint256)'))
     CALL_VM(<elements>, 0x20, <memoryOffset>)
     <memoryOffset> mload
 }
@@ -2886,6 +3789,36 @@
     <memoryOffset> mload
 }
 
+/// Generates the struct hash of the canonical EIP-712 type representation and its abi-encoded data.
+/// Supports 2 different inputs:
+/// 1. Name of the type (i.e. "PermitSingle"):
+/// * requires previous binding generation with `forge bind-json`.
+/// * bindings will be retrieved from the path configured in `foundry.toml`.
+/// 2. String representation of the type (i.e. "Foo(Bar bar) Bar(uint256 baz)").
+/// * Note: the cheatcode will use the canonical type even if the input is malformed
+/// with the wrong order of elements or with extra whitespaces.
+/// Consumes `elements` ABI-encoded words of string, bytes from the stack and pushes bytes32: vm.eip712HashStruct(string,bytes)
+/// Overwrites the calldata and the return data in memory from memoryOffset.
+#define macro VM_EIP712_HASH_STRUCT_STRING_BYTES(elements, memoryOffset) = takes(0) returns(1) {
+    __RIGHTPAD(__FUNC_SIG('eip712HashStruct(string,bytes)'))
+    CALL_VM(<elements>, 0x20, <memoryOffset>)
+    <memoryOffset> mload
+}
+
+/// Generates the struct hash of the canonical EIP-712 type representation and its abi-encoded data.
+/// Requires previous binding generation with `forge bind-json`.
+/// Params:
+/// * `bindingsPath`: path where the output of `forge bind-json` is stored.
+/// * `typeName`: Name of the type (i.e. "PermitSingle").
+/// * `abiEncodedData`: ABI-encoded data for the struct that is being hashed.
+/// Consumes `elements` ABI-encoded words of string, string, bytes from the stack and pushes bytes32: vm.eip712HashStruct(string,string,bytes)
+/// Overwrites the calldata and the return data in memory from memoryOffset.
+#define macro VM_EIP712_HASH_STRUCT_STRING_STRING_BYTES(elements, memoryOffset) = takes(0) returns(1) {
+    __RIGHTPAD(__FUNC_SIG('eip712HashStruct(string,string,bytes)'))
+    CALL_VM(<elements>, 0x20, <memoryOffset>)
+    <memoryOffset> mload
+}
+
 /// Generates the hash of the canonical EIP-712 type representation.
 /// Supports 2 different inputs:
 /// 1. Name of the type (i.e. "Transaction"):
@@ -2898,6 +3831,19 @@
 /// Overwrites the calldata and the return data in memory from memoryOffset.
 #define macro VM_EIP712_HASH_TYPE(elements, memoryOffset) = takes(0) returns(1) {
     __RIGHTPAD(__FUNC_SIG('eip712HashType(string)'))
+    CALL_VM(<elements>, 0x20, <memoryOffset>)
+    <memoryOffset> mload
+}
+
+/// Generates the hash of the canonical EIP-712 type representation.
+/// Requires previous binding generation with `forge bind-json`.
+/// Params:
+/// * `bindingsPath`: path where the output of `forge bind-json` is stored.
+/// * `typeName`: Name of the type (i.e. "Transaction").
+/// Consumes `elements` ABI-encoded words of string, string from the stack and pushes bytes32: vm.eip712HashType(string,string)
+/// Overwrites the calldata and the return data in memory from memoryOffset.
+#define macro VM_EIP712_HASH_TYPE_STRING_STRING(elements, memoryOffset) = takes(0) returns(1) {
+    __RIGHTPAD(__FUNC_SIG('eip712HashType(string,string)'))
     CALL_VM(<elements>, 0x20, <memoryOffset>)
     <memoryOffset> mload
 }
@@ -3420,6 +4366,7 @@
 /// Consumes `elements` ABI-encoded words of address, bytes4, bytes from the stack: vm.mockCallRevert(address,bytes4,bytes)
 /// Overwrites the calldata and the return data in memory from memoryOffset.
 #define macro VM_MOCK_CALL_REVERT_ADDRESS_BYTES4_BYTES(elements, memoryOffset) = takes(0) returns(0) {
+    swap1 dup1 0x100000000 gt 0xe0 mul shl swap1 // left-align bytes4
     __RIGHTPAD(__FUNC_SIG('mockCallRevert(address,bytes4,bytes)'))
     CALL_VM(<elements>, 0x00, <memoryOffset>)
 }
@@ -3429,6 +4376,7 @@
 /// Consumes `elements` ABI-encoded words of address, uint256, bytes4, bytes from the stack: vm.mockCallRevert(address,uint256,bytes4,bytes)
 /// Overwrites the calldata and the return data in memory from memoryOffset.
 #define macro VM_MOCK_CALL_REVERT_ADDRESS_UINT256_BYTES4_BYTES(elements, memoryOffset) = takes(0) returns(0) {
+    swap2 dup1 0x100000000 gt 0xe0 mul shl swap2 // left-align bytes4
     __RIGHTPAD(__FUNC_SIG('mockCallRevert(address,uint256,bytes4,bytes)'))
     CALL_VM(<elements>, 0x00, <memoryOffset>)
 }
@@ -3461,6 +4409,7 @@
 /// Consumes `elements` ABI-encoded words of address, bytes4, bytes from the stack: vm.mockCall(address,bytes4,bytes)
 /// Overwrites the calldata and the return data in memory from memoryOffset.
 #define macro VM_MOCK_CALL_ADDRESS_BYTES4_BYTES(elements, memoryOffset) = takes(0) returns(0) {
+    swap1 dup1 0x100000000 gt 0xe0 mul shl swap1 // left-align bytes4
     __RIGHTPAD(__FUNC_SIG('mockCall(address,bytes4,bytes)'))
     CALL_VM(<elements>, 0x00, <memoryOffset>)
 }
@@ -3471,6 +4420,7 @@
 /// Consumes `elements` ABI-encoded words of address, uint256, bytes4, bytes from the stack: vm.mockCall(address,uint256,bytes4,bytes)
 /// Overwrites the calldata and the return data in memory from memoryOffset.
 #define macro VM_MOCK_CALL_ADDRESS_UINT256_BYTES4_BYTES(elements, memoryOffset) = takes(0) returns(0) {
+    swap2 dup1 0x100000000 gt 0xe0 mul shl swap2 // left-align bytes4
     __RIGHTPAD(__FUNC_SIG('mockCall(address,uint256,bytes4,bytes)'))
     CALL_VM(<elements>, 0x00, <memoryOffset>)
 }
@@ -4071,6 +5021,14 @@
     CALL_VM(<elements>, 0x00, <memoryOffset>)
 }
 
+/// Expect given number of calls to an address with the specified `msg.value` and calldata, and a *minimum* amount of gas.
+/// Consumes `elements` ABI-encoded words of address, uint256, uint64, bytes, uint64 from the stack: vm.expectCallMinGas(address,uint256,uint64,bytes,uint64)
+/// Overwrites the calldata and the return data in memory from memoryOffset.
+#define macro VM_EXPECT_CALL_MIN_GAS_ADDRESS_UINT256_UINT64_BYTES_UINT64(elements, memoryOffset) = takes(0) returns(0) {
+    __RIGHTPAD(__FUNC_SIG('expectCallMinGas(address,uint256,uint64,bytes,uint64)'))
+    CALL_VM(<elements>, 0x00, <memoryOffset>)
+}
+
 /// Expects a call to an address with the specified calldata.
 /// Calldata can either be a strict or a partial match.
 /// Consumes `elements` ABI-encoded words of address, bytes from the stack: vm.expectCall(address,bytes)
@@ -4145,6 +5103,24 @@
     CALL_VM(<elements>, 0x00, <memoryOffset>)
 }
 
+/// Prepare an expected anonymous log with (bool checkTopic1, bool checkTopic2, bool checkTopic3, bool checkData.).
+/// Call this function, then emit an anonymous event, then call a function. Internally after the call, we check if
+/// logs were emitted in the expected order with the expected topics and data (as specified by the booleans).
+/// Consumes bool, bool, bool, bool, bool from the stack: vm.expectEmitAnonymous(bool,bool,bool,bool,bool)
+/// Overwrites 0xa4 bytes of memory from memoryOffset.
+#define macro VM_EXPECT_EMIT_ANONYMOUS_BOOL_BOOL_BOOL_BOOL_BOOL(memoryOffset) = takes(5) returns(0) {
+    __RIGHTPAD(__FUNC_SIG('expectEmitAnonymous(bool,bool,bool,bool,bool)'))
+    CALL_VM(0x5, 0x00, <memoryOffset>)
+}
+
+/// Same as the previous method, but also checks supplied address against emitting contract.
+/// Consumes bool, bool, bool, bool, bool, address from the stack: vm.expectEmitAnonymous(bool,bool,bool,bool,bool,address)
+/// Overwrites 0xc4 bytes of memory from memoryOffset.
+#define macro VM_EXPECT_EMIT_ANONYMOUS_BOOL_BOOL_BOOL_BOOL_BOOL_ADDRESS(memoryOffset) = takes(6) returns(0) {
+    __RIGHTPAD(__FUNC_SIG('expectEmitAnonymous(bool,bool,bool,bool,bool,address)'))
+    CALL_VM(0x6, 0x00, <memoryOffset>)
+}
+
 /// Prepare an expected anonymous log with all topic and data checks enabled.
 /// Call this function, then emit an anonymous event, then call a function. Internally after the call, we check if
 /// logs were emitted in the expected order with the expected topics and data.
@@ -4211,6 +5187,14 @@
 #define macro VM_EXPECT_EMIT_BOOL_BOOL_BOOL_BOOL_UINT64(memoryOffset) = takes(5) returns(0) {
     __RIGHTPAD(__FUNC_SIG('expectEmit(bool,bool,bool,bool,uint64)'))
     CALL_VM(0x5, 0x00, <memoryOffset>)
+}
+
+/// Expect a given number of logs from a specific emitter with the provided topics.
+/// Consumes bool, bool, bool, bool, address, uint64 from the stack: vm.expectEmit(bool,bool,bool,bool,address,uint64)
+/// Overwrites 0xc4 bytes of memory from memoryOffset.
+#define macro VM_EXPECT_EMIT_BOOL_BOOL_BOOL_BOOL_ADDRESS_UINT64(memoryOffset) = takes(6) returns(0) {
+    __RIGHTPAD(__FUNC_SIG('expectEmit(bool,bool,bool,bool,address,uint64)'))
+    CALL_VM(0x6, 0x00, <memoryOffset>)
 }
 
 /// Expect a given number of logs with all topic and data checks enabled.

@@ -1,0 +1,21 @@
+// Ported from Foundry's testdata/default/cheats/GetBlockTimestamp.t.sol (Foundry v1.8.6, MIT OR Apache-2.0)
+// Skipped: none. hnc test does not fuzz, so testGetTimestampWithWarpFuzzed runs with the largest uint32 jump.
+
+#include "../../src/test.huff"
+
+#define test GET_TIMESTAMP() = {
+    0x01 VM_GET_BLOCK_TIMESTAMP(0x00) ASSERT_EQ()      // assertEq(vm.getBlockTimestamp(), 1)
+}
+
+#define test GET_TIMESTAMP_WITH_WARP() = {
+    0x01 VM_GET_BLOCK_TIMESTAMP(0x00) ASSERT_EQ()
+    0x0a VM_WARP(0x00)                                 // vm.warp(10)
+    0x0a VM_GET_BLOCK_TIMESTAMP(0x00) ASSERT_EQ()
+}
+
+#define test GET_TIMESTAMP_WITH_WARP_FUZZED() = {
+    VM_GET_BLOCK_TIMESTAMP(0x00)                       // [pre]
+    dup1 0xffffffff add VM_WARP(0x00)                  // vm.warp(pre + jump)
+    0xffffffff add                                     // [pre + jump]
+    VM_GET_BLOCK_TIMESTAMP(0x00) ASSERT_EQ()
+}

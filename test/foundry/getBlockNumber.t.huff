@@ -1,0 +1,20 @@
+// Ported from Foundry's testdata/default/cheats/getBlockNumber.t.sol (Foundry v1.8.6, MIT OR Apache-2.0)
+// Skipped: none. hnc test does not fuzz, so testGetBlockNumberWithRollFuzzed runs with the largest uint32 jump.
+
+#include "../../src/test.huff"
+
+#define test GET_BLOCK_NUMBER() = {
+    number VM_GET_BLOCK_NUMBER(0x00) ASSERT_EQ()       // assertEq(vm.getBlockNumber(), block.number)
+}
+
+#define test GET_BLOCK_NUMBER_WITH_ROLL() = {
+    0x0a VM_ROLL(0x00)                                 // vm.roll(10)
+    0x0a VM_GET_BLOCK_NUMBER(0x00) ASSERT_EQ()
+}
+
+#define test GET_BLOCK_NUMBER_WITH_ROLL_FUZZED() = {
+    VM_GET_BLOCK_NUMBER(0x00)                          // [pre]
+    dup1 0xffffffff add VM_ROLL(0x00)                  // vm.roll(pre + jump)
+    0xffffffff add                                     // [pre + jump]
+    VM_GET_BLOCK_NUMBER(0x00) ASSERT_EQ()
+}

@@ -1,0 +1,127 @@
+// Ported from Foundry's testdata/default/cheats/Sign.t.sol (Foundry v1.8.6, MIT OR Apache-2.0)
+// Skipped: none. The fuzz tests run with the fixed private key PK, digest DIGEST and message "hello
+// world". src/vm.huff has no macro for `signWithNonceUnsafe`, so it is called with CALL_FUNCTION.
+
+#include "../../src/test.huff"
+
+#define constant PK = 0x0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcd
+#define constant DIGEST = 0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+#define constant SECP256K1_ORDER = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141
+
+/// Consumes [digest, v, r, s] and pushes the address `ecrecover` recovers
+#define macro ECRECOVER() = takes(4) returns(1) {
+    0x200 mstore 0x220 mstore 0x240 mstore 0x260 mstore
+    0x20 0x280 0x80 0x200 0x01 gas staticcall pop
+    0x280 mload
+}
+
+/// Pushes keccak256("hello world")
+#define macro MESSAGE_DIGEST() = takes(0) returns(1) {
+    __RIGHTPAD(0x68656c6c6f20776f726c64) 0x300 mstore
+    0x0b 0x300 sha3
+}
+
+/// Consumes [pk, digest] and fails the test unless vm.sign recovers to vm.addr(pk)
+#define macro CHECK_SIGN() = takes(2) returns(0) {
+    dup2 dup2 VM_SIGN(0x00)                  // [v, r, s, pk, digest]
+    dup5 ECRECOVER()                         // [actual, pk, digest]
+    swap1 VM_ADDR(0x00)                      // [expected, actual, digest]
+    ASSERT_EQ_ADDRESS()                      // "digest signer did not match"
+    pop
+}
+
+/// Consumes [pk, digest] and fails the test unless vm.signCompact recovers to vm.addr(pk)
+#define macro CHECK_SIGN_COMPACT() = takes(2) returns(0) {
+    dup2 dup2 VM_SIGN_COMPACT(0x00)          // [r, vs, pk, digest]
+    swap1                                    // [vs, r, pk, digest]
+    dup1 0x01 shl 0x01 shr                   // [s, vs, r, pk, digest]
+    swap1 0xff shr 0x1b add                  // [v, s, r, pk, digest]
+    swap1 swap2 swap1                        // [v, r, s, pk, digest]
+    dup5 ECRECOVER()                         // [actual, pk, digest]
+    swap1 VM_ADDR(0x00)                      // [expected, actual, digest]
+    ASSERT_EQ_ADDRESS()                      // "digest signer did not match"
+    pop
+}
+
+/// Consumes [pk, digest, nonce] and pushes [v, r, s] of vm.signWithNonceUnsafe
+#define macro SIGN_WITH_NONCE_UNSAFE() = takes(3) returns(3) {
+    __FUNC_SIG("signWithNonceUnsafe(uint256,bytes32,uint256)") [VM_ADDRESS] CALL_FUNCTION(0x03)
+    REQUIRE_SUCCESS()
+    0x60 0x00 0x00 returndatacopy
+    0x40 mload 0x20 mload 0x00 mload
+}
+
+/// Consumes [success, length, chunk_1, ..., chunk_n] and fails the test unless the last call failed
+/// with `CheatcodeError(string)` carrying the `length` bytes of the chunks as its message
+#define macro EXPECT_CHEATCODE_ERROR(chunks) = takes(0) returns(0) {
+    returndatasize 0x00 0x00 returndatacopy  // the revert data at 0x00
+    ASSERT_FALSE()                           // the call failed
+    0xeeaa9e6f 0x00 mload 0xe0 shr ASSERT_EQ()
+
+    0x1000 mstore                            // the expected message at 0x1000: length, then data
+    0x1020
+    for (i in 0..<chunks>) {
+        swap1 dup2 mstore 0x20 add
+    }
+    pop
+    0x1000 mload 0x1020 sha3                 // [expected hash]
+    0x24 mload 0x44 sha3                     // [actual hash, expected hash]
+    ASSERT_EQ_BYTES32()
+}
+
+#define test SIGN_DIGEST() = {
+    [DIGEST] [PK] CHECK_SIGN()
+}
+
+#define test SIGN_COMPACT_DIGEST() = {
+    [DIGEST] [PK] CHECK_SIGN_COMPACT()
+}
+
+#define test SIGN_MESSAGE() = {
+    MESSAGE_DIGEST() [PK] CHECK_SIGN()
+}
+
+#define test SIGN_COMPACT_MESSAGE() = {
+    MESSAGE_DIGEST() [PK] CHECK_SIGN_COMPACT()
+}
+
+#define test SIGN_WITH_NONCE_UNSAFE_DIGEST_DIFFERENT_NONCES() = {
+    0x01c8 [DIGEST] [PK] SIGN_WITH_NONCE_UNSAFE()   // [v2, r2, s2], nonce 456
+    0x7b [DIGEST] [PK] SIGN_WITH_NONCE_UNSAFE()     // [v1, r1, s1, v2, r2, s2], nonce 123
+
+    // assertTrue(r1 != r2 || s1 != s2, "signatures should differ for different nonces")
+    dup2 dup6 eq iszero dup4 dup8 eq iszero or ASSERT_TRUE()
+
+    // assertEq(ecrecover(digest, v1, r1, s1), expected, "recover for nonce n1 failed")
+    [DIGEST] ECRECOVER()
+    [PK] VM_ADDR(0x00) ASSERT_EQ_ADDRESS()
+    // assertEq(ecrecover(digest, v2, r2, s2), expected, "recover for nonce n2 failed")
+    [DIGEST] ECRECOVER()
+    [PK] VM_ADDR(0x00) ASSERT_EQ_ADDRESS()
+}
+
+#define test SIGN_WITH_NONCE_UNSAFE_DIGEST_SAME_NONCE_DETERMINISTIC() = {
+    0x0309 [DIGEST] [PK] SIGN_WITH_NONCE_UNSAFE()   // [v2, r2, s2], nonce 777
+    0x0309 [DIGEST] [PK] SIGN_WITH_NONCE_UNSAFE()   // [v1, r1, s1, v2, r2, s2]
+
+    dup4 dup2 ASSERT_EQ()                    // "v should match"
+    dup5 dup3 ASSERT_EQ_BYTES32()            // "r should match"
+    dup6 dup4 ASSERT_EQ_BYTES32()            // "s should match"
+
+    [DIGEST] ECRECOVER()                     // "recover failed"
+    [PK] VM_ADDR(0x00) ASSERT_EQ_ADDRESS()
+}
+
+#define test SIGN_WITH_NONCE_UNSAFE_INVALID_NONCES_REVERT() = {
+    // "vm.signWithNonceUnsafe: nonce cannot be 0"
+    __RIGHTPAD(__BYTES("nnot be 0")) __RIGHTPAD(__BYTES("vm.signWithNonceUnsafe: nonce ca")) 0x29
+    0x00 [DIGEST] 0x01
+    __FUNC_SIG("signWithNonceUnsafe(uint256,bytes32,uint256)") [VM_ADDRESS] CALL_FUNCTION(0x03)
+    EXPECT_CHEATCODE_ERROR(0x02)             // "expected revert on nonce=0"
+
+    // "vm.signWithNonceUnsafe: invalid nonce scalar"
+    __RIGHTPAD(__BYTES("nonce scalar")) __RIGHTPAD(__BYTES("vm.signWithNonceUnsafe: invalid ")) 0x2c
+    [SECP256K1_ORDER] [DIGEST] 0x01
+    __FUNC_SIG("signWithNonceUnsafe(uint256,bytes32,uint256)") [VM_ADDRESS] CALL_FUNCTION(0x03)
+    EXPECT_CHEATCODE_ERROR(0x02)             // "expected revert on nonce >= n"
+}

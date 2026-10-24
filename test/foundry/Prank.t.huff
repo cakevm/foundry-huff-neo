@@ -1,0 +1,380 @@
+// Ported from Foundry's testdata/default/cheats/Prank.t.sol (Foundry v1.8.6, MIT OR Apache-2.0)
+// Skipped: testPrankNestedDeployCodeRestoresOuterOrigin, as vm.deployCode needs a compiled artifact,
+// and Issue9990's testDelegatePrank, as it chains creations of three Solidity contracts. Fuzzed
+// sender and origin arguments are the fixed addresses SENDER and NEW_ORIGIN. The victims return the
+// msg.sender and tx.origin they see instead of asserting them, and the test asserts them.
+// READ_CALLERS is not in Prank.t.sol: it checks vm.readCallers() through the same prank states.
+
+#include "../../src/test.huff"
+
+#define function incompletePrank() nonpayable returns ()
+#define function completePrank() nonpayable returns (bytes)
+#define function createAs(address) nonpayable returns (bytes)
+#define function assertCorrectCaller(address) nonpayable returns ()
+#define function assertCorrectOrigin(address) nonpayable returns ()
+#define function setNum(uint256) nonpayable returns ()
+
+#define constant SENDER = 0xa11ce
+#define constant NEW_ORIGIN = 0xdeadbeef
+
+// `Victim` from fixtures/PrankVictim.huff, etched at 0x1000
+#define constant VICTIM = 0x1000
+// `NestedVictim` from fixtures/PrankNestedVictim.huff, etched at 0x2000, calling the victim at 0x1000
+#define constant NESTED_VICTIM = 0x2000
+// Creation code of `ConstructorVictim` from fixtures/PrankConstructorVictim.huff, etched at 0x3000
+#define constant VICTIM_CREATION_CODE = 0x3000
+// `NestedPranker` and `NestedCreatePranker` from fixtures/PrankNestedPranker.huff, etched at 0x4000
+#define constant PRANKER = 0x4000
+// `ProxyTest`, any contract, etched at 0x5000
+#define constant PROXY = 0x5000
+// `ImplementationTest` from fixtures/PrankImplementation.huff, etched at 0x6000
+#define constant IMPLEMENTATION = 0x6000
+
+#define constant CHEATCODE_ERROR = 0xeeaa9e6f    // CheatcodeError(string)
+
+/* ── Helpers ── */
+
+/// Consumes [victim] and pushes the [msg.sender, tx.origin] the victim saw
+#define macro CALLERS() = takes(1) returns(2) {
+    0x40 0x00 0x00 0x00 dup5 gas staticcall REQUIRE_SUCCESS()
+    pop 0x20 mload 0x00 mload
+}
+
+/// Consumes [victim, sender, origin] and fails the test unless the victim saw this msg.sender and
+/// tx.origin
+#define macro ASSERT_CALLERS() = takes(3) returns(0) {
+    CALLERS()                           // [seenSender, seenOrigin, sender, origin]
+    swap1 swap2                         // [sender, seenSender, seenOrigin, origin]
+    ASSERT_EQ_ADDRESS() ASSERT_EQ_ADDRESS()
+}
+
+/// Consumes [nestedVictim, sender, origin] and fails the test unless the nested victim saw this
+/// msg.sender and tx.origin, and its inner victim saw the nested victim and the same tx.origin
+#define macro ASSERT_NESTED_CALLERS() = takes(3) returns(0) {
+    0x80 0x00 0x00 0x00 dup5 gas staticcall REQUIRE_SUCCESS()
+    pop 0x00 mload ASSERT_EQ_ADDRESS()  // [origin]
+    dup1 0x20 mload ASSERT_EQ_ADDRESS()
+    [NESTED_VICTIM] 0x40 mload ASSERT_EQ_ADDRESS()
+    0x60 mload ASSERT_EQ_ADDRESS()
+}
+
+/// Creates a `ConstructorVictim` and pushes its address
+#define macro NEW_CONSTRUCTOR_VICTIM() = takes(0) returns(1) {
+    [VICTIM_CREATION_CODE] extcodesize 0x00 0x00 [VICTIM_CREATION_CODE] extcodecopy
+    [VICTIM_CREATION_CODE] extcodesize 0x00 0x00 create
+    dup1 iszero ASSERT_FALSE()
+}
+
+/// Consumes [victim, sender, origin] and fails the test unless the constructor of the
+/// `ConstructorVictim` saw this msg.sender and tx.origin
+#define macro ASSERT_CONSTRUCTOR_CALLERS() = takes(3) returns(0) {
+    0x80 0x00 0x00 0x00 dup5 gas staticcall REQUIRE_SUCCESS()
+    pop 0x40 mload ASSERT_EQ_ADDRESS()
+    0x60 mload ASSERT_EQ_ADDRESS()
+}
+
+/// Consumes [selector, argument] and delegatecalls IMPLEMENTATION with them, pushing the success flag
+#define macro DELEGATECALL_IMPLEMENTATION() = takes(2) returns(1) {
+    0xe0 shl 0x00 mstore 0x04 mstore
+    0x00 0x00 0x24 0x00 [IMPLEMENTATION] gas delegatecall
+}
+
+/* ── Delegatecall pranks ── */
+
+#[etch(0x5000, "0x00")]
+#[etch(0x6000, "0x5f3560e01c8063b6ec634a146100295780635d1caeee14610036578063cd16ecbf14610043575f5ffd5b6004353314610049575f5ffd5b6004353214610049575f5ffd5b6004355f555b00")]
+#define test PRANK_DELEGATE_CALL_PRANK2() = {
+    0x01 [PROXY] VM_PRANK_ADDRESS_BOOL(0x00)         // vm.prank(proxy, true)
+    [PROXY] __FUNC_SIG(assertCorrectCaller) DELEGATECALL_IMPLEMENTATION() ASSERT_TRUE()
+
+    0x01 [PROXY] VM_PRANK_ADDRESS_BOOL(0x00)
+    0x2a __FUNC_SIG(setNum) DELEGATECALL_IMPLEMENTATION() ASSERT_TRUE()
+    0x00 [PROXY] VM_LOAD(0x00) 0x2a ASSERT_EQ()        // proxy.num() == 42
+}
+
+#[etch(0x5000, "0x00")]
+#[etch(0x6000, "0x5f3560e01c8063b6ec634a146100295780635d1caeee14610036578063cd16ecbf14610043575f5ffd5b6004353314610049575f5ffd5b6004353214610049575f5ffd5b6004355f555b00")]
+#define test PRANK_DELEGATE_CALL_START_PRANK2() = {
+    0x01 [PROXY] VM_START_PRANK_ADDRESS_BOOL(0x00)   // vm.startPrank(proxy, true)
+    [PROXY] __FUNC_SIG(assertCorrectCaller) DELEGATECALL_IMPLEMENTATION() ASSERT_TRUE()
+    0x2a __FUNC_SIG(setNum) DELEGATECALL_IMPLEMENTATION() ASSERT_TRUE()
+    0x00 [PROXY] VM_LOAD(0x00) 0x2a ASSERT_EQ()
+    VM_STOP_PRANK(0x00)
+}
+
+#[etch(0x5000, "0x00")]
+#[etch(0x6000, "0x5f3560e01c8063b6ec634a146100295780635d1caeee14610036578063cd16ecbf14610043575f5ffd5b6004353314610049575f5ffd5b6004353214610049575f5ffd5b6004355f555b00")]
+#define test PRANK_DELEGATE_CALL_PRANK3() = {
+    0x01 [NEW_ORIGIN] [PROXY] VM_PRANK_ADDRESS_ADDRESS_BOOL(0x00)   // vm.prank(proxy, origin, true)
+    [PROXY] __FUNC_SIG(assertCorrectCaller) DELEGATECALL_IMPLEMENTATION() ASSERT_TRUE()
+
+    0x01 [NEW_ORIGIN] [PROXY] VM_PRANK_ADDRESS_ADDRESS_BOOL(0x00)
+    [NEW_ORIGIN] __FUNC_SIG(assertCorrectOrigin) DELEGATECALL_IMPLEMENTATION() ASSERT_TRUE()
+
+    0x01 [NEW_ORIGIN] [PROXY] VM_PRANK_ADDRESS_ADDRESS_BOOL(0x00)
+    0x2a __FUNC_SIG(setNum) DELEGATECALL_IMPLEMENTATION() ASSERT_TRUE()
+    0x00 [PROXY] VM_LOAD(0x00) 0x2a ASSERT_EQ()
+}
+
+#[etch(0x5000, "0x00")]
+#[etch(0x6000, "0x5f3560e01c8063b6ec634a146100295780635d1caeee14610036578063cd16ecbf14610043575f5ffd5b6004353314610049575f5ffd5b6004353214610049575f5ffd5b6004355f555b00")]
+#define test PRANK_DELEGATE_CALL_START_PRANK3() = {
+    0x01 [NEW_ORIGIN] [PROXY] VM_START_PRANK_ADDRESS_ADDRESS_BOOL(0x00)
+    [PROXY] __FUNC_SIG(assertCorrectCaller) DELEGATECALL_IMPLEMENTATION() ASSERT_TRUE()
+    [NEW_ORIGIN] __FUNC_SIG(assertCorrectOrigin) DELEGATECALL_IMPLEMENTATION() ASSERT_TRUE()
+    0x2a __FUNC_SIG(setNum) DELEGATECALL_IMPLEMENTATION() ASSERT_TRUE()
+    0x00 [PROXY] VM_LOAD(0x00) 0x2a ASSERT_EQ()
+    VM_STOP_PRANK(0x00)
+}
+
+#define test REVERT_IF_PRANK_DELEGATE_CALL_TO_EOA() = {
+    // vm.prank(alice, true) fails for an account without code; called directly to check its error
+    0x01 [SENDER] __FUNC_SIG("prank(address,bool)") [VM_ADDRESS] CALL_FUNCTION(0x02)
+    returndatasize 0x00 0x200 returndatacopy
+    ASSERT_FALSE()
+    0x200 mload 0xe0 shr [CHEATCODE_ERROR] ASSERT_EQ()
+    0x224 mload 0x32 ASSERT_EQ()                       // the length of the message
+    0x244 mload __RIGHTPAD(__BYTES("vm.prank: cannot `prank` delegat")) ASSERT_EQ_BYTES32()
+}
+
+/* ── prank ── */
+
+#[etch(0x1000, "0x335f523260205260405ff3")]
+#define test PRANK_SENDER() = {
+    [SENDER] VM_PRANK(0x00)
+    origin [SENDER] [VICTIM] ASSERT_CALLERS()
+    // Ensure we cleaned up correctly
+    origin address [VICTIM] ASSERT_CALLERS()
+}
+
+#[etch(0x1000, "0x335f523260205260405ff3")]
+#define test PRANK_ORIGIN() = {
+    [NEW_ORIGIN] [SENDER] VM_PRANK_ADDRESS_ADDRESS(0x00)
+    [NEW_ORIGIN] [SENDER] [VICTIM] ASSERT_CALLERS()
+    origin address [VICTIM] ASSERT_CALLERS()
+}
+
+#[etch(0x1000, "0x335f523260205260405ff3")]
+#define test PRANK1_AFTER_PRANK0() = {
+    [SENDER] VM_PRANK(0x00)
+    origin [SENDER] [VICTIM] ASSERT_CALLERS()
+    origin address [VICTIM] ASSERT_CALLERS()
+
+    // Overwrite the prank
+    [NEW_ORIGIN] [SENDER] VM_PRANK_ADDRESS_ADDRESS(0x00)
+    [NEW_ORIGIN] [SENDER] [VICTIM] ASSERT_CALLERS()
+    origin address [VICTIM] ASSERT_CALLERS()
+}
+
+#[etch(0x1000, "0x335f523260205260405ff3")]
+#define test PRANK0_AFTER_PRANK1() = {
+    [NEW_ORIGIN] [SENDER] VM_PRANK_ADDRESS_ADDRESS(0x00)
+    [NEW_ORIGIN] [SENDER] [VICTIM] ASSERT_CALLERS()
+    origin address [VICTIM] ASSERT_CALLERS()
+
+    // Overwrite the prank
+    [SENDER] VM_PRANK(0x00)
+    origin [SENDER] [VICTIM] ASSERT_CALLERS()
+    origin address [VICTIM] ASSERT_CALLERS()
+}
+
+/* ── startPrank ── */
+
+#[etch(0x1000, "0x335f523260205260405ff3")]
+#define test START_PRANK0_AFTER_PRANK1() = {
+    [NEW_ORIGIN] [SENDER] VM_START_PRANK_ADDRESS_ADDRESS(0x00)
+    [NEW_ORIGIN] [SENDER] [VICTIM] ASSERT_CALLERS()
+
+    // Overwrite the prank
+    [SENDER] VM_START_PRANK(0x00)
+    origin [SENDER] [VICTIM] ASSERT_CALLERS()
+
+    VM_STOP_PRANK(0x00)
+    origin address [VICTIM] ASSERT_CALLERS()
+}
+
+#[etch(0x1000, "0x335f523260205260405ff3")]
+#define test START_PRANK1_AFTER_START_PRANK0() = {
+    [SENDER] VM_START_PRANK(0x00)
+    origin [SENDER] [VICTIM] ASSERT_CALLERS()
+    // Ensure the prank is still up, as startPrank covers multiple calls
+    origin [SENDER] [VICTIM] ASSERT_CALLERS()
+
+    // Overwrite the prank
+    [NEW_ORIGIN] [SENDER] VM_START_PRANK_ADDRESS_ADDRESS(0x00)
+    [NEW_ORIGIN] [SENDER] [VICTIM] ASSERT_CALLERS()
+    [NEW_ORIGIN] [SENDER] [VICTIM] ASSERT_CALLERS()
+
+    VM_STOP_PRANK(0x00)
+    origin address [VICTIM] ASSERT_CALLERS()
+}
+
+#define test REVERT_IF_OVERWRITE_UNUSED_PRANK() = {
+    [NEW_ORIGIN] [SENDER] VM_START_PRANK_ADDRESS_ADDRESS(0x00)
+
+    // vm.startPrank(address(this), origin) fails; called directly to check its error
+    [NEW_ORIGIN] address __FUNC_SIG("startPrank(address,address)") [VM_ADDRESS] CALL_FUNCTION(0x02)
+    returndatasize 0x00 0x200 returndatacopy
+    ASSERT_FALSE()
+    0x200 mload 0xe0 shr [CHEATCODE_ERROR] ASSERT_EQ()
+    0x224 mload 0x49 ASSERT_EQ()                       // the length of the message
+    0x244 mload __RIGHTPAD(__BYTES("vm.startPrank: cannot overwrite ")) ASSERT_EQ_BYTES32()
+}
+
+#[etch(0x1000, "0x335f523260205260405ff3")]
+#define test REVERT_IF_OVERWRITE_UNUSED_PRANK_AFTER_SUCCESSFUL_PRANK() = {
+    [NEW_ORIGIN] [SENDER] VM_START_PRANK_ADDRESS_ADDRESS(0x00)
+    [NEW_ORIGIN] [SENDER] [VICTIM] ASSERT_CALLERS()
+    [NEW_ORIGIN] address VM_START_PRANK_ADDRESS_ADDRESS(0x00)
+
+    // Overwriting the new prank before it was used fails
+    [NEW_ORIGIN] [SENDER] __FUNC_SIG("startPrank(address,address)") [VM_ADDRESS] CALL_FUNCTION(0x02)
+    returndatasize 0x00 0x200 returndatacopy
+    ASSERT_FALSE()
+    0x200 mload 0xe0 shr [CHEATCODE_ERROR] ASSERT_EQ()
+    0x244 mload __RIGHTPAD(__BYTES("vm.startPrank: cannot overwrite ")) ASSERT_EQ_BYTES32()
+}
+
+#[etch(0x1000, "0x335f523260205260405ff3")]
+#define test START_PRANK0_AFTER_START_PRANK1() = {
+    [NEW_ORIGIN] [SENDER] VM_START_PRANK_ADDRESS_ADDRESS(0x00)
+    [NEW_ORIGIN] [SENDER] [VICTIM] ASSERT_CALLERS()
+    // Ensure the prank is still ongoing, as we have not called stopPrank
+    [NEW_ORIGIN] [SENDER] [VICTIM] ASSERT_CALLERS()
+
+    // Overwrite the prank
+    [SENDER] VM_START_PRANK(0x00)
+    origin [SENDER] [VICTIM] ASSERT_CALLERS()
+
+    VM_STOP_PRANK(0x00)
+    origin address [VICTIM] ASSERT_CALLERS()
+}
+
+#[etch(0x1000, "0x335f523260205260405ff3")]
+#define test PRANK_START_STOP() = {
+    [NEW_ORIGIN] [SENDER] VM_START_PRANK_ADDRESS_ADDRESS(0x00)
+    [NEW_ORIGIN] [SENDER] [VICTIM] ASSERT_CALLERS()
+    [NEW_ORIGIN] [SENDER] [VICTIM] ASSERT_CALLERS()   // call 2
+    VM_STOP_PRANK(0x00)
+
+    origin address [VICTIM] ASSERT_CALLERS()
+}
+
+/* ── Constructors ── */
+
+#[etch(0x3000, "0x335f553260015560168060103d393df3335f52326020525f5460405260015460605260805ff3")]
+#define test PRANK_CONSTRUCTOR_SENDER() = {
+    [SENDER] VM_PRANK(0x00)
+    NEW_CONSTRUCTOR_VICTIM()                           // [victim]
+    origin [SENDER] dup3 ASSERT_CONSTRUCTOR_CALLERS()
+
+    // Ensure we cleaned up correctly
+    origin address dup3 ASSERT_CALLERS()
+}
+
+#[etch(0x3000, "0x335f553260015560168060103d393df3335f52326020525f5460405260015460605260805ff3")]
+#define test PRANK_CONSTRUCTOR_ORIGIN() = {
+    [NEW_ORIGIN] [SENDER] VM_PRANK_ADDRESS_ADDRESS(0x00)
+    NEW_CONSTRUCTOR_VICTIM()
+    [NEW_ORIGIN] [SENDER] dup3 ASSERT_CONSTRUCTOR_CALLERS()
+
+    origin address dup3 ASSERT_CALLERS()
+}
+
+#[etch(0x3000, "0x335f553260015560168060103d393df3335f52326020525f5460405260015460605260805ff3")]
+#define test PRANK_START_STOP_CONSTRUCTOR() = {
+    [NEW_ORIGIN] [SENDER] VM_START_PRANK_ADDRESS_ADDRESS(0x00)
+    NEW_CONSTRUCTOR_VICTIM()
+    [NEW_ORIGIN] [SENDER] dup3 ASSERT_CONSTRUCTOR_CALLERS()
+    NEW_CONSTRUCTOR_VICTIM()                           // call 2
+    [NEW_ORIGIN] [SENDER] dup3 ASSERT_CONSTRUCTOR_CALLERS() pop
+    VM_STOP_PRANK(0x00)
+
+    origin address dup3 ASSERT_CALLERS()
+}
+
+#[etch(0x1000, "0x335f523260205260405ff3")]
+#[etch(0x3000, "0x335f553260015560168060103d393df3335f52326020525f5460405260015460605260805ff3")]
+#[etch(0x4000, "0x5f3560e01c80632dddd970146100295780639091f4821461006d578063f405c276146100d7575f5ffd5b6345b5607860e01b5f52620a11ce60045263deadbeef6024525f5f60445f5f737109709ecfa91a80626ff3989d68f67f5b1dd12d5af161006b573d5f5f3e3d5ffd5b005b60805f5f5f6120005afa610083573d5f5f3e3d5ffd5b6390c5013b60e01b610100525f5f60046101005f737109709ecfa91a80626ff3989d68f67f5b1dd12d5af16100ba573d5f5f3e3d5ffd5b608060805f5f6120005afa6100d1573d5f5f3e3d5ffd5b6101005ff35b63ca669fa760e01b5f526004356004525f5f60245f5f737109709ecfa91a80626ff3989d68f67f5b1dd12d5af1610110573d5f5f3e3d5ffd5b6130003b5f5f6130003c6130003b5f5ff08061012a575f5ffd5b60805f5f5f845afa61013e573d5f5f3e3d5ffd5b60805ff3")]
+#define test PRANK_NESTED_CREATE_RESTORES_OUTER_ORIGIN() = {
+    // The outer prank is consumed by the call; the callee pranks a single create at a deeper
+    // depth, which must only clean up its own prank
+    [NEW_ORIGIN] [SENDER] VM_PRANK_ADDRESS_ADDRESS(0x00)
+    0x0b0b __FUNC_SIG(createAs) [PRANKER] CALL_FUNCTION(0x01)
+    returndatasize 0x00 0x00 returndatacopy ASSERT_TRUE()
+
+    // The constructor saw the nested prank's sender and the outer prank's origin
+    0x0b0b 0x40 mload ASSERT_EQ_ADDRESS()
+    [NEW_ORIGIN] 0x60 mload ASSERT_EQ_ADDRESS()
+
+    // Ensure the outer prank was cleaned up correctly
+    origin address [VICTIM] ASSERT_CALLERS()
+}
+
+#[etch(0x3000, "0x335f553260015560168060103d393df3335f52326020525f5460405260015460605260805ff3")]
+#define test START_PRANK_ON_CONTRACT_CREATION() = {
+    0x022222 VM_START_PRANK(0x00)
+    NEW_CONSTRUCTOR_VICTIM()                           // [counter]
+    origin 0x022222 dup3 ASSERT_CONSTRUCTOR_CALLERS()
+
+    // The prank was applied to the creation, so it can be overwritten
+    0x011111 VM_START_PRANK(0x00)
+    origin 0x011111 dup3 ASSERT_CALLERS()
+}
+
+/* ── Nested calls ── */
+
+#[etch(0x1000, "0x335f523260205260405ff3")]
+#[etch(0x2000, "0x604060405f5f6110005afa610016573d5f5f3e3d5ffd5b335f523260205260805ff3")]
+#[etch(0x4000, "0x5f3560e01c80632dddd970146100295780639091f4821461006d578063f405c276146100d7575f5ffd5b6345b5607860e01b5f52620a11ce60045263deadbeef6024525f5f60445f5f737109709ecfa91a80626ff3989d68f67f5b1dd12d5af161006b573d5f5f3e3d5ffd5b005b60805f5f5f6120005afa610083573d5f5f3e3d5ffd5b6390c5013b60e01b610100525f5f60046101005f737109709ecfa91a80626ff3989d68f67f5b1dd12d5af16100ba573d5f5f3e3d5ffd5b608060805f5f6120005afa6100d1573d5f5f3e3d5ffd5b6101005ff35b63ca669fa760e01b5f526004356004525f5f60245f5f737109709ecfa91a80626ff3989d68f67f5b1dd12d5af1610110573d5f5f3e3d5ffd5b6130003b5f5f6130003c6130003b5f5ff08061012a575f5ffd5b60805f5f5f845afa61013e573d5f5f3e3d5ffd5b60805ff3")]
+#define test PRANK_COMPLEX() = {
+    // The pranker starts a prank at its own depth, which must not alter calls from the test
+    __FUNC_SIG(incompletePrank) [PRANKER] CALL_FUNCTION(0x00) ASSERT_TRUE()
+    origin address [NESTED_VICTIM] ASSERT_NESTED_CALLERS()
+
+    // completePrank: the victim is pranked by the pranker, then cleaned up by its stopPrank
+    __FUNC_SIG(completePrank) [PRANKER] CALL_FUNCTION(0x00)
+    returndatasize 0x00 0x00 returndatacopy ASSERT_TRUE()
+    [SENDER] 0x00 mload ASSERT_EQ_ADDRESS()            // pranked msg.sender
+    [NEW_ORIGIN] 0x20 mload ASSERT_EQ_ADDRESS()        // pranked tx.origin
+    [NESTED_VICTIM] 0x40 mload ASSERT_EQ_ADDRESS()     // the inner victim's msg.sender
+    [NEW_ORIGIN] 0x60 mload ASSERT_EQ_ADDRESS()        // only tx.origin is pranked for the inner victim
+    [PRANKER] 0x80 mload ASSERT_EQ_ADDRESS()           // after stopPrank
+    origin 0xa0 mload ASSERT_EQ_ADDRESS()
+    [NESTED_VICTIM] 0xc0 mload ASSERT_EQ_ADDRESS()
+    origin 0xe0 mload ASSERT_EQ_ADDRESS()
+}
+
+#[etch(0x1000, "0x335f523260205260405ff3")]
+#[etch(0x2000, "0x604060405f5f6110005afa610016573d5f5f3e3d5ffd5b335f523260205260805ff3")]
+#define test TX_ORIGIN_IN_NESTED_PRANK() = {
+    // tx.origin is set for all subcalls of a prank
+    [NEW_ORIGIN] [SENDER] VM_PRANK_ADDRESS_ADDRESS(0x00)
+    [NEW_ORIGIN] [SENDER] [NESTED_VICTIM] ASSERT_NESTED_CALLERS()
+}
+
+/* ── readCallers ── */
+
+#[etch(0x1000, "0x335f523260205260405ff3")]
+#define test READ_CALLERS() = {
+    // CallerMode: 0 None, 3 Prank, 4 RecurrentPrank
+    VM_READ_CALLERS(0x00)                              // [mode, sender, origin]
+    0x00 ASSERT_EQ() caller ASSERT_EQ_ADDRESS() origin ASSERT_EQ_ADDRESS()
+
+    [NEW_ORIGIN] [SENDER] VM_PRANK_ADDRESS_ADDRESS(0x00)
+    VM_READ_CALLERS(0x00)
+    0x03 ASSERT_EQ() [SENDER] ASSERT_EQ_ADDRESS() [NEW_ORIGIN] ASSERT_EQ_ADDRESS()
+
+    // The victim call uses up the prank
+    [NEW_ORIGIN] [SENDER] [VICTIM] ASSERT_CALLERS()
+    VM_READ_CALLERS(0x00)
+    0x00 ASSERT_EQ() caller ASSERT_EQ_ADDRESS() origin ASSERT_EQ_ADDRESS()
+
+    [SENDER] VM_START_PRANK(0x00)
+    VM_READ_CALLERS(0x00)
+    0x04 ASSERT_EQ() [SENDER] ASSERT_EQ_ADDRESS() origin ASSERT_EQ_ADDRESS()
+
+    VM_STOP_PRANK(0x00)
+    VM_READ_CALLERS(0x00)
+    0x00 ASSERT_EQ() caller ASSERT_EQ_ADDRESS() origin ASSERT_EQ_ADDRESS()
+}

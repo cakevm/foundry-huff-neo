@@ -8,7 +8,8 @@
   - Requires huff-neo 1.7.0 or later for `hnc test`.
 - Add assertions and call helpers in `src/test.huff`, such as `ASSERT_EQ`, `CALL_FUNCTION` and `EXPECT_REVERT_CALL`.
   - See `test/vm.t.huff` and `test/vault.t.huff` for examples.
-- Run the Huff tests in `test/*.t.huff` in CI with `make test-huff`.
+- Port Foundry's cheatcode tests to Huff in `test/foundry/` to check the macros against Foundry's behaviour.
+- Run the Huff tests in `test/*.t.huff` and `test/foundry/*.t.huff` in CI with `make test-huff`.
 
 ## [1.1.0] - 2026-01-02
 - **Breaking**: Refactored `HuffNeoConfig` from a contract to a library with `HuffConfig` struct

@@ -1,0 +1,10 @@
+// Ported from Foundry's testdata/default/cheats/Label.t.sol (Foundry v1.8.6, MIT OR Apache-2.0)
+// Skipped: none.
+
+#include "../../src/test.huff"
+
+#define test LABEL() = {
+    // vm.label(address(1), "Sir Address the 1st"): the address, the string's offset, length and data
+    __RIGHTPAD(__BYTES("Sir Address the 1st")) 0x13 0x40 0x01
+    VM_LABEL(0x04, 0x00)
+}

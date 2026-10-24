@@ -1,0 +1,41 @@
+// Huff version of the `Emitter` contract in Foundry's testdata/default/cheats/RecordLogs.t.sol.
+// Runtime bytecode for RecordLogs.t.huff: `hnc test/foundry/fixtures/RecordLogsEmitter.huff -r`
+
+#define event LogAnonymous(bytes)
+#define event LogTopic0(bytes)
+#define event LogTopic1(uint256 indexed, bytes)
+#define event LogTopic12(uint256 indexed, uint256 indexed, bytes)
+#define event LogTopic123(uint256 indexed, uint256 indexed, uint256 indexed, bytes)
+
+/// Writes abi.encode(data) to memory 0x00, for the `bytes data` argument that follows `topics`
+/// words of calldata, and pushes its size
+#define macro ENCODE_DATA(topics) = takes(0) returns(1) {
+    0x20 0x00 mstore
+    <topics> 0x20 mul 0x04 add calldataload 0x04 add  // [start], where the length of data is
+    dup1 calldatasize sub                              // [size, start]
+    dup1 swap2                                         // [start, size, size]
+    0x20 calldatacopy                                  // [size]
+    0x20 add                                           // [total]
+}
+
+#define macro MAIN() = takes(0) returns(0) {
+    0x00 calldataload 0xe0 shr
+    dup1 __FUNC_SIG("emitAnonymousEvent(bytes)") eq anonymous jumpi
+    dup1 __FUNC_SIG("emitEvent(bytes)") eq topic0 jumpi
+    dup1 __FUNC_SIG("emitEvent(uint256,bytes)") eq topic1 jumpi
+    dup1 __FUNC_SIG("emitEvent(uint256,uint256,bytes)") eq topic12 jumpi
+    dup1 __FUNC_SIG("emitEvent(uint256,uint256,uint256,bytes)") eq topic123 jumpi
+    0x00 0x00 revert
+
+    anonymous:
+        ENCODE_DATA(0x00) 0x00 log0 stop
+    topic0:
+        ENCODE_DATA(0x00) __EVENT_HASH(LogTopic0) swap1 0x00 log1 stop
+    topic1:
+        ENCODE_DATA(0x01) 0x04 calldataload __EVENT_HASH(LogTopic1) dup3 0x00 log2 stop
+    topic12:
+        ENCODE_DATA(0x02) 0x24 calldataload 0x04 calldataload __EVENT_HASH(LogTopic12) dup4 0x00 log3 stop
+    topic123:
+        ENCODE_DATA(0x03) 0x44 calldataload 0x24 calldataload 0x04 calldataload
+        __EVENT_HASH(LogTopic123) dup5 0x00 log4 stop
+}

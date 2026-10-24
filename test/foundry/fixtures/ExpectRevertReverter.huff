@@ -1,0 +1,91 @@
+// Huff version of the `Reverter` contract in Foundry's testdata/default/cheats/ExpectRevert.t.sol,
+// plus `f(bytes)` of `ExpectRevertWithErrorTest` as `revertWithData(bytes)`.
+// Runtime bytecode for ExpectRevert.t.huff: `hnc test/foundry/fixtures/ExpectRevertReverter.huff -r`
+
+#define function revertWithMessage(string) pure returns ()
+#define function doNotRevert() pure returns ()
+#define function panic() pure returns (uint256)
+#define function revertWithCustomError() pure returns ()
+#define function nestedRevert(address,string) pure returns ()
+#define function callThenRevert(address,string) pure returns ()
+#define function callThenNoRevert(address) pure returns ()
+#define function revertWithoutReason() pure returns ()
+#define function outOfGas() pure returns ()
+#define function revertWithData(bytes) pure returns ()
+
+#define error CustomError()
+
+/// Reverts with Error(string), taking the ABI-encoded string from calldata at `stringOffset`
+#define macro REVERT_WITH_STRING(stringOffset) = takes(0) returns(0) {
+    0x08c379a0 0x00 mstore             // selector at 0x1c
+    0x20 0x20 mstore                   // offset of the string
+    <stringOffset> calldatasize sub    // [size of length + data]
+    <stringOffset> 0x40 calldatacopy
+    <stringOffset> calldatasize sub 0x24 add 0x1c revert
+}
+
+/// Reverts with the data of the last call
+#define macro BUBBLE() = takes(0) returns(0) {
+    returndatasize 0x00 0x00 returndatacopy
+    returndatasize 0x00 revert
+}
+
+#define macro MAIN() = takes(0) returns(0) {
+    0x00 calldataload 0xe0 shr
+    dup1 __FUNC_SIG(revertWithMessage) eq revert_with_message jumpi
+    dup1 __FUNC_SIG(doNotRevert) eq do_not_revert jumpi
+    dup1 __FUNC_SIG(panic) eq panic jumpi
+    dup1 __FUNC_SIG(revertWithCustomError) eq custom_error jumpi
+    dup1 __FUNC_SIG(nestedRevert) eq nested_revert jumpi
+    dup1 __FUNC_SIG(callThenRevert) eq call_then_revert jumpi
+    dup1 __FUNC_SIG(callThenNoRevert) eq call_then_no_revert jumpi
+    dup1 __FUNC_SIG(revertWithoutReason) eq revert_without_reason jumpi
+    dup1 __FUNC_SIG(outOfGas) eq out_of_gas jumpi
+    dup1 __FUNC_SIG(revertWithData) eq revert_with_data jumpi
+    0x00 0x00 revert
+
+    revert_with_message:
+        REVERT_WITH_STRING(0x24)
+
+    do_not_revert:
+        stop
+
+    panic:
+        // Panic(0x11), an arithmetic underflow
+        0x4e487b71 0x00 mstore
+        0x11 0x20 mstore
+        0x24 0x1c revert
+
+    custom_error:
+        __ERROR(CustomError) 0x00 mstore
+        0x04 0x00 revert
+
+    nested_revert:
+        // inner.revertWithMessage(message), bubbling its revert
+        __FUNC_SIG(revertWithMessage) 0xe0 shl 0x00 mstore
+        0x20 0x04 mstore
+        0x44 calldatasize sub 0x44 0x24 calldatacopy
+        0x00 0x00 0x20 calldatasize sub 0x00 0x00 0x04 calldataload gas call
+        pop BUBBLE()
+
+    call_then_revert:
+        __FUNC_SIG("callMe()") 0xe0 shl 0x00 mstore
+        0x00 0x00 0x04 0x00 0x00 0x04 calldataload gas call pop
+        REVERT_WITH_STRING(0x44)
+
+    call_then_no_revert:
+        __FUNC_SIG("callMe()") 0xe0 shl 0x00 mstore
+        0x00 0x00 0x04 0x00 0x00 0x04 calldataload gas call pop
+        stop
+
+    revert_without_reason:
+        0x00 0x00 revert
+
+    out_of_gas:
+        loop: loop jump
+
+    revert_with_data:
+        // the bytes argument: offset at 0x04, length at 0x24, data from 0x44
+        0x24 calldataload dup1 0x44 0x00 calldatacopy
+        0x00 revert
+}

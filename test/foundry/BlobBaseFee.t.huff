@@ -1,0 +1,9 @@
+// Ported from Foundry's testdata/default/cheats/BlobBaseFee.t.sol (Foundry v1.8.6, MIT OR Apache-2.0)
+// Skipped: none.
+
+#include "../../src/test.huff"
+
+#define test BLOB_BASE_FEE() = {
+    0x1b39 VM_BLOB_BASE_FEE(0x00)                      // vm.blobBaseFee(6969)
+    0x1b39 VM_GET_BLOB_BASE_FEE(0x00) ASSERT_EQ()      // assertEq(vm.getBlobBaseFee(), 6969)
+}

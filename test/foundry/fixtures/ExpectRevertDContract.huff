@@ -1,0 +1,14 @@
+// Huff version of the `DContract` contract in Foundry's testdata/default/cheats/ExpectRevert.t.sol: its
+// constructor reverts with Error("Reverted by DContract").
+// Creation bytecode for ExpectRevert.t.huff and ExpectRevertCContract.huff:
+// `hnc test/foundry/fixtures/ExpectRevertDContract.huff -b`
+
+#define macro CONSTRUCTOR() = takes(0) returns(0) {
+    0x08c379a0 0x00 mstore
+    0x20 0x20 mstore
+    0x15 0x40 mstore
+    __RIGHTPAD(__BYTES("Reverted by DContract")) 0x60 mstore
+    0x64 0x1c revert
+}
+
+#define macro MAIN() = takes(0) returns(0) {}

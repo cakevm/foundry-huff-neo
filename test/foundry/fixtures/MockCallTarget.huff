@@ -1,0 +1,33 @@
+// Foundry's `Mock` (MockCall.t.sol) and `Contract` (ExpectCall.t.sol) helper contracts.
+// Runtime bytecode: hnc MockCallTarget.huff -r
+
+#define function numberA() pure returns (uint256)
+#define function numberB() pure returns (uint256)
+#define function add(uint256, uint256) pure returns (uint256)
+#define function pay(uint256) payable returns (uint256)
+#define function noReturnValue() nonpayable returns ()
+
+#define macro RETURN_WORD() = takes(1) returns(0) {
+    0x00 mstore 0x20 0x00 return
+}
+
+#define macro MAIN() = takes(0) returns(0) {
+    0x00 calldataload 0xe0 shr
+    dup1 __FUNC_SIG(numberA) eq number_a jumpi
+    dup1 __FUNC_SIG(numberB) eq number_b jumpi
+    dup1 __FUNC_SIG(add) eq add_numbers jumpi
+    dup1 __FUNC_SIG(pay) eq pay jumpi
+    dup1 __FUNC_SIG(noReturnValue) eq no_return_value jumpi
+    0x00 0x00 revert
+
+    number_a:
+        0x01 RETURN_WORD()
+    number_b:
+        0x02 RETURN_WORD()
+    add_numbers:
+        0x24 calldataload 0x04 calldataload add RETURN_WORD()
+    pay:
+        0x04 calldataload RETURN_WORD()
+    no_return_value:
+        0x00 sload 0x01 add 0x00 sstore stop
+}

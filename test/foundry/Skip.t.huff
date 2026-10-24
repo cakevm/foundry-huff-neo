@@ -1,0 +1,38 @@
+// Ported from Foundry's testdata/default/cheats/Skip.t.sol (Foundry v1.8.6, MIT OR Apache-2.0)
+// Skipped: statefulFuzzSkip (an invariant helper, not a test). hnc test does not fuzz, so testFuzzSkip and
+// testRevertIfFuzzSkip run with a fixed x. SKIP and FUZZ_SKIP are reported as skipped, as in forge. The tests expect their own revert,
+// which forge allows with allow_internal_expect_revert, so they use the expect_revert decorator instead.
+
+#include "../../src/test.huff"
+
+// Reverts with Error("This test should fail")
+#define macro REVERT_THIS_TEST_SHOULD_FAIL() = takes(0) returns(0) {
+    __FUNC_SIG("Error(string)") 0xe0 shl 0x00 mstore
+    0x20 0x04 mstore
+    0x15 0x24 mstore
+    __RIGHTPAD(__BYTES("This test should fail")) 0x44 mstore
+    0x64 0x00 revert
+}
+
+#define test SKIP() = {
+    0x01 VM_SKIP(0x00)                                 // vm.skip(true)
+    0x00 0x00 revert                                   // never reached
+}
+
+#define test FUZZ_SKIP() = {
+    0x01 VM_SKIP(0x00)                                 // vm.skip(true)
+    0x00 0x00 revert                                   // never reached
+}
+
+// vm.expectRevert("This test should fail")
+#[expect_revert("0x08c379a0000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000155468697320746573742073686f756c64206661696c0000000000000000000000")]
+#define test REVERT_IF_NOT_SKIP() = {
+    0x00 VM_SKIP(0x00)                                 // vm.skip(false)
+    REVERT_THIS_TEST_SHOULD_FAIL()
+}
+
+#[expect_revert("0x08c379a0000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000155468697320746573742073686f756c64206661696c0000000000000000000000")]
+#define test REVERT_IF_FUZZ_SKIP() = {
+    0x00 VM_SKIP(0x00)                                 // vm.skip(false)
+    REVERT_THIS_TEST_SHOULD_FAIL()
+}

@@ -1,0 +1,66 @@
+// Ported from Foundry's testdata/default/cheats/Record.t.sol (Foundry v1.8.6, MIT OR Apache-2.0)
+// Skipped: none. `new RecordAccess()` is the runtime code of fixtures/RecordAccess.huff etched at
+// TARGET; it deploys its NestedRecordAccess with `create` as the Solidity contract does.
+
+#include "../../src/test.huff"
+
+#define constant TARGET = 0x1000
+
+/// Pushes a pointer to the bytes32[] whose offset `vm.accesses` wrote at memory `head`
+#define macro ARRAY(head) = takes(0) returns(1) {
+    <head> mload
+}
+
+/// Checks the reads and writes `vm.accesses` wrote at 0x00: `reads` reads and `writes` writes, each of
+/// the given slot
+#define macro ASSERT_ACCESSES(reads, writes, slot) = takes(0) returns(0) {
+    <reads> ARRAY(0x00) mload ASSERT_EQ()                   // "number of reads is incorrect"
+    for (i in 0..<reads>) {
+        <slot> ARRAY(0x00) 0x20 add <i> 0x20 mul add mload ASSERT_EQ_BYTES32()
+    }
+    <writes> ARRAY(0x20) mload ASSERT_EQ()                  // "number of writes is incorrect"
+    for (i in 0..<writes>) {
+        <slot> ARRAY(0x20) 0x20 add <i> 0x20 mul add mload ASSERT_EQ_BYTES32()
+    }
+}
+
+// RecordAccess, runtime code of fixtures/RecordAccess.huff
+#[etch(0x1000, "0x60015460010160015560136100375f3960135f5ff063266cf10960e01b5f525f5f60045f5f855af115610033575f5260205ff35b5f5ffd600a8060095f395ff360025460010160025500")]
+#define test RECORD_ACCESS() = {
+    // Start recording
+    VM_RECORD(0x00)
+    __FUNC_SIG("record()") [TARGET] CALL_FUNCTION(0x00)
+    LAST_RETURN_WORD() swap1 ASSERT_TRUE()   // [inner]
+
+    // Verify Records
+    [TARGET] VM_ACCESSES(0x00) pop
+    ASSERT_ACCESSES(0x02, 0x01, 0x01)
+
+    VM_ACCESSES(0x00) pop                    // vm.accesses(address(inner))
+    ASSERT_ACCESSES(0x02, 0x01, 0x02)        // "number of nested reads is incorrect", ...
+}
+
+#[etch(0x1000, "0x60015460010160015560136100375f3960135f5ff063266cf10960e01b5f525f5f60045f5f855af115610033575f5260205ff35b5f5ffd600a8060095f395ff360025460010160025500")]
+#define test STOP_RECORD_ACCESS() = {
+    // Start recording
+    VM_RECORD(0x00)
+    __FUNC_SIG("record()") [TARGET] CALL_FUNCTION(0x00) ASSERT_TRUE()
+
+    // Verify Records
+    [TARGET] VM_ACCESSES(0x00) pop
+    ASSERT_ACCESSES(0x02, 0x01, 0x01)
+
+    VM_STOP_RECORD(0x00)
+    __FUNC_SIG("record()") [TARGET] CALL_FUNCTION(0x00) ASSERT_TRUE()
+
+    // Verify that there are no new Records
+    [TARGET] VM_ACCESSES(0x00) pop
+    ASSERT_ACCESSES(0x02, 0x01, 0x01)
+
+    VM_RECORD(0x00)
+    VM_STOP_RECORD(0x00)
+
+    // verify reset all records
+    [TARGET] VM_ACCESSES(0x00) pop
+    ASSERT_ACCESSES(0x00, 0x00, 0x01)
+}

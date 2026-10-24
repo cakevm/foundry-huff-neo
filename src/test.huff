@@ -31,13 +31,14 @@
 #define macro STATICCALL_FUNCTION(words) = takes(0) returns(1) {
     0x00 swap1                         // [address, value, selector, word_1, ...]
     WRITE_CALL(<words>)                // [inSize, memory]
-    0x20 dup3 dup3                     // [inSize, memory, 0x20, inSize, memory]
+    // Returns into the zero value slot, so a shorter return is padded with zeros
+    0x20 dup3 0x20 add dup3            // [inSize, memory + 32, 0x20, inSize, memory]
     dup5 0x40 add                      // [inOffset, inSize, retOffset, retSize, inSize, memory]
     dup6 mload                         // [address, ...]
     gas staticcall                     // [success, inSize, memory]
     swap1 pop                          // [success, memory]
     REQUIRE_SUCCESS()                  // [memory]
-    mload                              // [word]
+    0x20 add mload                     // [word]
 }
 
 /// Consumes [success] and reverts with the return data of the last call when it is zero

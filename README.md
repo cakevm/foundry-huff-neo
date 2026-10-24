@@ -78,7 +78,7 @@ hnc test/MyContract.t.huff test
 
 A failed cheatcode or assertion reverts with its message and stops the test. After `VM_EXPECT_REVERT`, an expected revert makes the call report success, so check the flag with `ASSERT_TRUE`, or use `EXPECT_REVERT_CALL`.
 
-See `test/vm.t.huff` for every helper, and `test/vault.t.huff` for testing a contract with decorators and cheatcodes. `src/vm.huff` is generated from forge-std's `Vm.sol` by `scripts/build_vm_macros.py`.
+See `test/vm.t.huff` for every helper, and `test/vault.t.huff` for testing a contract with decorators and cheatcodes. `test/foundry/` holds Foundry's own cheatcode tests ported to Huff, which check the macros against Foundry's behaviour. `src/vm.huff` is generated from forge-std's `Vm.sol` by `scripts/build_vm_macros.py`.
 
 ## Deployment
 

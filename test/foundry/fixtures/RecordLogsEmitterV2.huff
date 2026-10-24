@@ -1,0 +1,24 @@
+// Huff version of the `Emitterv2` contract in Foundry's testdata/default/cheats/RecordLogs.t.sol.
+// Instead of deploying its Emitter in a constructor, it reads the Emitter's address from slot 0,
+// which the test sets with a `store` decorator.
+// Runtime bytecode for RecordLogs.t.huff: `hnc test/foundry/fixtures/RecordLogsEmitterV2.huff -r`
+
+#define macro MAIN() = takes(0) returns(0) {
+    0x00 calldataload 0xe0 shr
+    dup1 __FUNC_SIG("emitEvent(uint256,uint256,uint256,bytes)") eq emit_event jumpi
+    dup1 __FUNC_SIG("getEmitterAddr()") eq get_emitter jumpi
+    0x00 0x00 revert
+
+    // emitter.emitEvent(topic1, topic2, topic3, data), with the same calldata
+    emit_event:
+        calldatasize 0x00 0x00 calldatacopy
+        0x00 0x00 calldatasize 0x00 0x00 0x00 sload gas call
+        iszero fail jumpi
+        stop
+
+    get_emitter:
+        0x00 sload 0x00 mstore 0x20 0x00 return
+
+    fail:
+        0x00 0x00 revert
+}

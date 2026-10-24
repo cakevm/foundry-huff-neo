@@ -1,0 +1,38 @@
+// Ported from Foundry's testdata/default/cheats/Addr.t.sol (Foundry v1.8.6, MIT OR Apache-2.0)
+// Skipped: none. testRevertIfPkZero uses `vm.expectRevert` on the cheatcode itself, which needs
+// `allow_internal_expect_revert`; here the cheatcode is called directly and its error is checked.
+
+#include "../../src/test.huff"
+
+/// Consumes [success, length, chunk_1, ..., chunk_n] and fails the test unless the last call failed
+/// with `CheatcodeError(string)` carrying the `length` bytes of the chunks as its message
+#define macro EXPECT_CHEATCODE_ERROR(chunks) = takes(0) returns(0) {
+    returndatasize 0x00 0x00 returndatacopy  // the revert data at 0x00
+    ASSERT_FALSE()                           // the call failed
+    0xeeaa9e6f 0x00 mload 0xe0 shr ASSERT_EQ()
+
+    0x1000 mstore                            // the expected message at 0x1000: length, then data
+    0x1020
+    for (i in 0..<chunks>) {
+        swap1 dup2 mstore 0x20 add
+    }
+    pop
+    0x1000 mload 0x1020 sha3                 // [expected hash]
+    0x24 mload 0x44 sha3                     // [actual hash, expected hash]
+    ASSERT_EQ_BYTES32()
+}
+
+#define test REVERT_IF_PK_ZERO() = {
+    // vm.expectRevert("vm.addr: private key cannot be 0"); vm.addr(0);
+    __RIGHTPAD(__BYTES("vm.addr: private key cannot be 0")) 0x20
+    0x00 __FUNC_SIG("addr(uint256)") [VM_ADDRESS] CALL_FUNCTION(0x01)
+    EXPECT_CHEATCODE_ERROR(0x01)
+}
+
+#define test ADDR() = {
+    // assertEq(vm.addr(pk), expected, "expected address did not match")
+    __RIGHTPAD(__BYTES("expected address did not match")) 0x1e 0x60
+    0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+    0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 VM_ADDR(0x00)
+    VM_ASSERT_EQ_ADDRESS_ADDRESS_STRING(0x05, 0x00)
+}

@@ -1,0 +1,50 @@
+// Ported from Foundry's testdata/default/cheats/ToString.t.sol (Foundry v1.8.6, MIT OR Apache-2.0)
+// Skipped: none. Each `vm.toString` leaves the ABI-encoded string at memory 0x00: the offset, the
+// length at 0x20 and the data from 0x40, which the tests compare word by word.
+
+#include "../../src/test.huff"
+
+#define test ADDRESS_TO_STRING() = {
+    0x7109709ECfa91a80626fF3989D68f67F5b1DD12D VM_TO_STRING_ADDRESS(0x00) pop
+    // "0x7109709ECfa91a80626fF3989D68f67F5b1DD12D"
+    0x2a 0x20 mload ASSERT_EQ()
+    __RIGHTPAD(__BYTES("0x7109709ECfa91a80626fF3989D68f6")) 0x40 mload ASSERT_EQ_BYTES32()
+    __RIGHTPAD(__BYTES("7F5b1DD12D")) 0x60 mload ASSERT_EQ_BYTES32()
+}
+
+#define test BYTES32_TO_STRING() = {
+    __RIGHTPAD(__BYTES("test")) VM_TO_STRING_BYTES32(0x00) pop
+    // "0x7465737400000000000000000000000000000000000000000000000000000000"
+    0x42 0x20 mload ASSERT_EQ()
+    __RIGHTPAD(__BYTES("0x746573740000000000000000000000")) 0x40 mload ASSERT_EQ_BYTES32()
+    __RIGHTPAD(__BYTES("00000000000000000000000000000000")) 0x60 mload ASSERT_EQ_BYTES32()
+    __RIGHTPAD(__BYTES("00")) 0x80 mload ASSERT_EQ_BYTES32()
+}
+
+#define test BOOL_TO_STRING() = {
+    0x01 VM_TO_STRING_BOOL(0x00) pop
+    0x04 0x20 mload ASSERT_EQ()
+    __RIGHTPAD(__BYTES("true")) 0x40 mload ASSERT_EQ_BYTES32()
+}
+
+#define test BYTES_TO_STRING() = {
+    // vm.toString(hex"7109709ECfa91a80626fF3989D68f67F5b1DD12D"): offset, length, data
+    __RIGHTPAD(0x7109709ECfa91a80626fF3989D68f67F5b1DD12D) 0x14 0x20
+    VM_TO_STRING_BYTES(0x03, 0x00) pop
+    // "0x7109709ecfa91a80626ff3989d68f67f5b1dd12d"
+    0x2a 0x20 mload ASSERT_EQ()
+    __RIGHTPAD(__BYTES("0x7109709ecfa91a80626ff3989d68f6")) 0x40 mload ASSERT_EQ_BYTES32()
+    __RIGHTPAD(__BYTES("7f5b1dd12d")) 0x60 mload ASSERT_EQ_BYTES32()
+}
+
+#define test UINT_TO_STRING() = {
+    0x01a4 VM_TO_STRING_UINT256(0x00) pop    // vm.toString(420)
+    0x03 0x20 mload ASSERT_EQ()
+    __RIGHTPAD(__BYTES("420")) 0x40 mload ASSERT_EQ_BYTES32()
+}
+
+#define test INT_TO_STRING() = {
+    0x01a4 VM_TO_STRING_INT256(0x00) pop     // vm.toString(int256(420))
+    0x03 0x20 mload ASSERT_EQ()
+    __RIGHTPAD(__BYTES("420")) 0x40 mload ASSERT_EQ_BYTES32()
+}

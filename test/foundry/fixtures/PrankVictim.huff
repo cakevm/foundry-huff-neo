@@ -1,0 +1,9 @@
+// Foundry's `Victim` helper contract from Prank.t.sol: instead of asserting, it returns the
+// msg.sender and tx.origin it sees, so the test can assert them.
+// Runtime bytecode: hnc PrankVictim.huff -r
+
+#define macro MAIN() = takes(0) returns(0) {
+    caller 0x00 mstore
+    origin 0x20 mstore
+    0x40 0x00 return
+}
