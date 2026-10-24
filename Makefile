@@ -2,6 +2,10 @@
 test:
 	forge test
 
+.PHONY: test-huff
+test-huff:
+	@for file in test/*.t.huff; do hnc $$file test || exit 1; done
+
 .PHONY: fmt
 fmt:
 	forge fmt

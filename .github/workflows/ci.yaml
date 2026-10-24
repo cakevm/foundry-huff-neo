@@ -52,3 +52,6 @@ jobs:
 
       - name: Run Tests
         run: make test
+
+      - name: Run Huff Tests
+        run: make test-huff

@@ -1,0 +1,128 @@
+/// A timelocked ETH vault with an owner-controlled withdrawal fee and a price oracle quote, used as an
+/// example of testing a contract with cheatcodes in test/vault.t.huff.
+
+#define function deposit() payable returns ()
+#define function withdraw(uint256) nonpayable returns ()
+#define function setFee(uint256) nonpayable returns ()
+#define function owner() view returns (address)
+#define function fee() view returns (uint256)
+#define function balanceOf(address) view returns (uint256)
+#define function unlockAt(address) view returns (uint256)
+#define function quote(uint256) view returns (uint256)
+#define function getPrice() view returns (uint256)
+
+#define event Deposit(address indexed, uint256)
+#define event Withdraw(address indexed, uint256, uint256)
+#define event FeeChanged(uint256)
+
+#define error Unauthorized()
+#define error Locked(uint256)
+#define error InsufficientBalance(uint256, uint256)
+#define error FeeTooHigh()
+#define error TransferFailed()
+
+#define constant OWNER_SLOT = 0x00
+#define constant FEE_SLOT = 0x01
+#define constant BALANCE_SLOT = 0x02
+#define constant UNLOCK_SLOT = 0x03
+#define constant ORACLE_SLOT = 0x04
+#define constant LOCK_TIME = 0x015180  // 1 day
+#define constant MAX_FEE = 0x03e8      // 10% in bps
+
+/// Pushes the storage slot of `mapping[key]` for the mapping at `base`
+#define macro MAP_SLOT(base) = takes (1) returns (1) {
+    // [key]
+    0x00 mstore <base> 0x20 mstore 0x40 0x00 sha3
+}
+
+#define macro DEPOSIT() = takes (0) returns (0) {
+    caller MAP_SLOT(0x02)          // [bslot]
+    dup1 sload callvalue add swap1 sstore    // []
+    [LOCK_TIME] timestamp add
+    caller MAP_SLOT(0x03) sstore    // []
+    callvalue 0x00 mstore
+    caller __EVENT_HASH(Deposit) 0x20 0x00 log2
+    stop
+}
+
+#define macro WITHDRAW() = takes (0) returns (0) {
+    // timelock
+    caller MAP_SLOT(0x03) sload     // [unlock]
+    dup1 timestamp lt locked jumpi           // [unlock]
+    pop
+    0x04 calldataload                        // [amount]
+    caller MAP_SLOT(0x02)          // [bslot, amount]
+    dup1 sload                               // [bal, bslot, amount]
+    dup1 dup4 gt insufficient jumpi          // [bal, bslot, amount]
+    dup3 swap1 sub swap1 sstore              // [amount]
+    [FEE_SLOT] sload dup2 mul 0x2710 swap1 div // [fee, amount]
+    // pay fee to owner
+    0x00 0x00 0x00 0x00 dup5 [OWNER_SLOT] sload gas call
+    iszero transfer_failed jumpi             // [fee, amount]
+    dup1 dup3 sub                            // [net, fee, amount]
+    0x00 0x00 0x00 0x00 dup5 caller gas call
+    iszero transfer_failed jumpi             // [net, fee, amount]
+    pop                                      // [fee, amount]
+    0x20 mstore 0x00 mstore                  // []
+    caller __EVENT_HASH(Withdraw) 0x40 0x00 log2
+    stop
+
+    locked:                                  // [unlock]
+        __ERROR(Locked) 0x00 mstore 0x04 mstore 0x24 0x00 revert
+    insufficient:                            // [bal, bslot, amount]
+        __ERROR(InsufficientBalance) 0x00 mstore
+        swap1 pop 0x24 mstore 0x04 mstore 0x44 0x00 revert
+}
+
+#define macro SET_FEE() = takes (0) returns (0) {
+    [OWNER_SLOT] sload caller eq iszero unauthorized jumpi
+    0x04 calldataload                        // [fee]
+    dup1 [MAX_FEE] lt too_high jumpi
+    dup1 [FEE_SLOT] sstore
+    0x00 mstore __EVENT_HASH(FeeChanged) 0x20 0x00 log1
+    stop
+    too_high:
+        __ERROR(FeeTooHigh) 0x00 mstore 0x04 0x00 revert
+}
+
+#define macro QUOTE() = takes (0) returns (0) {
+    __FUNC_SIG(getPrice) 0xe0 shl 0x00 mstore
+    0x20 0x00 0x04 0x00 [ORACLE_SLOT] sload gas staticcall
+    iszero oracle_failed jumpi
+    0x00 mload 0x04 calldataload mul         // [amount * price]
+    0x0de0b6b3a7640000 swap1 div             // [quote]
+    0x00 mstore 0x20 0x00 return
+    oracle_failed:
+        returndatasize 0x00 0x00 returndatacopy returndatasize 0x00 revert
+}
+
+#define macro RETURN_UINT() = takes (1) returns (0) {
+    0x00 mstore 0x20 0x00 return
+}
+
+#define macro MAIN() = takes (0) returns (0) {
+    0x00 calldataload 0xe0 shr
+    dup1 __FUNC_SIG(deposit) eq deposit jumpi
+    dup1 __FUNC_SIG(withdraw) eq withdraw jumpi
+    dup1 __FUNC_SIG(setFee) eq set_fee jumpi
+    dup1 __FUNC_SIG(owner) eq owner jumpi
+    dup1 __FUNC_SIG(fee) eq fee jumpi
+    dup1 __FUNC_SIG(balanceOf) eq balance_of jumpi
+    dup1 __FUNC_SIG(unlockAt) eq unlock_at jumpi
+    dup1 __FUNC_SIG(quote) eq quote jumpi
+    0x00 0x00 revert
+
+    deposit: DEPOSIT()
+    withdraw: WITHDRAW()
+    set_fee: SET_FEE()
+    quote: QUOTE()
+    owner: [OWNER_SLOT] sload RETURN_UINT()
+    fee: [FEE_SLOT] sload RETURN_UINT()
+    balance_of: 0x04 calldataload MAP_SLOT(0x02) sload RETURN_UINT()
+    unlock_at: 0x04 calldataload MAP_SLOT(0x03) sload RETURN_UINT()
+
+    unauthorized:
+        __ERROR(Unauthorized) 0x00 mstore 0x04 0x00 revert
+    transfer_failed:
+        __ERROR(TransferFailed) 0x00 mstore 0x04 0x00 revert
+}
