@@ -82,8 +82,7 @@
     dup3 0x4024 add mstore                   // [key, jsonSize]
     dup2 0x4044 add mstore                   // [jsonSize]
     0x64 add                                 // [inSize]
-    0x00 0x00 swap2 0x4000 0x00 [VM_ADDRESS] gas call
-    REQUIRE_SUCCESS()
+    0x4000 CALL_CHEATCODE_FROM_MEMORY()
 }
 
 /* ── Fork ids and switching ── */

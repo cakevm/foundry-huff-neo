@@ -75,9 +75,16 @@ hnc test/MyContract.t.huff test
 - `ASSERT_EQ`, `ASSERT_NOT_EQ`, `ASSERT_LT`, `ASSERT_LE`, `ASSERT_GT`, `ASSERT_GE`, their signed `_INT` versions, `ASSERT_EQ_ADDRESS`, `ASSERT_EQ_BYTES32`, `ASSERT_TRUE` and `ASSERT_FALSE`.
 - `CALL_FUNCTION(words)`, `CALL_FUNCTION_WITH_VALUE(words)` and `STATICCALL_FUNCTION(words)` call a contract with a selector and argument words. `LAST_RETURN_WORD` reads the return data, before the next call or assertion replaces it.
 - `EXPECT_REVERT_CALL(words)` expects a call to revert with an error and fails the test unless it does.
+- `CALL_CHEATCODE_FROM_MEMORY()` calls a cheatcode with calldata built in memory, for arguments whose size is only known at run time, such as a string an earlier cheatcode returned.
 - `EXPECT_CHEATCODE_ERROR(chunks)` fails the test unless the last call failed with a cheatcode error carrying the given message, such as `vm.addr(0)` failing with "vm.addr: private key cannot be 0".
 
 A failed cheatcode or assertion reverts with its message and stops the test. After `VM_EXPECT_REVERT`, an expected revert makes the call report success, so check the flag with `ASSERT_TRUE`, or use `EXPECT_REVERT_CALL`.
+
+### How Foundry reports failed expectations
+An expectation that is not met makes the call it applies to fail, and the test sees it in the success flag:
+- A failed `vm.expectRevert` fails the call with `CheatcodeError(string)`, such as "call did not revert as expected". `EXPECT_CHEATCODE_ERROR` checks it.
+- A failed `vm.expectEmit` fails the call with the message as a plain ABI-encoded string, without a selector, such as "log != expected log". The expectation stays active, so the test also fails at its end unless a later call meets it.
+- An unmet `vm.expectCall`, or an emit that never happens, fails the test when it ends.
 
 See `test/vm.t.huff` for every helper, and `test/vault.t.huff` for testing a contract with decorators and cheatcodes. `test/foundry/` holds Foundry's own cheatcode tests ported to Huff, which check the macros against Foundry's behaviour. `src/vm.huff` is generated from forge-std's `Vm.sol` by `scripts/build_vm_macros.py`.
 

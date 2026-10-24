@@ -64,6 +64,17 @@
     mload                              // [word]
 }
 
+/// Consumes [offset, size] and calls a cheatcode with the `size` bytes of calldata at `offset`: its
+/// selector and ABI-encoded arguments. For arguments of a size known only at run time, such as a
+/// dynamic value an earlier cheatcode returned. A failed cheatcode reverts with its error; read the
+/// result with `returndatacopy` or `LAST_RETURN_WORD`.
+#define macro CALL_CHEATCODE_FROM_MEMORY() = takes(2) returns(0) {
+    0x00 0x00 dup4 dup4                // [offset, size, retOffset, retSize, offset, size]
+    0x00 [VM_ADDRESS] gas call         // [success, offset, size]
+    swap2 pop pop                      // [success]
+    REQUIRE_SUCCESS()
+}
+
 /* ── Expectations ── */
 
 /// Consumes [error, address, selector, word_1, ..., word_n], expects the call to revert with the

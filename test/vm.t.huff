@@ -131,6 +131,16 @@
     VM_ASSERT_EQ_STRING_STRING(0x06, 0x00)
 }
 
+#define test DYNAMIC_RESULT_INTO_CHEATCODE() = {
+    // vm.assertEq(vm.toString(42), "42"): the returned string goes into the next call through memory
+    0x2a VM_TO_STRING_UINT256(0x00) pop      // ABI-encoded "42" at 0x00: offset, length, data
+    __FUNC_SIG("assertEq(string,string)") 0xe0 shl 0x100 mstore
+    0x40 0x104 mstore 0x80 0x124 mstore      // offsets of the two strings
+    0x40 0x20 0x144 mcopy                    // the first string: length and data from the result
+    0x02 0x184 mstore __RIGHTPAD(__BYTES("42")) 0x1a4 mstore
+    0xc4 0x100 CALL_CHEATCODE_FROM_MEMORY()
+}
+
 #[etch(0x6000, "0x60075f527f48257dc961b6f792c2b78a080dacfed693b660960a702de21cee364e20270e2f60205fa100")]
 #define test RECORD_LOGS() = {
     VM_RECORD_LOGS(0x00)

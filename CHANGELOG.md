@@ -6,7 +6,7 @@
 - Add every Foundry cheatcode as a macro for Huff tests in `src/vm.huff`, generated from forge-std's `Vm.sol`.
   - Example: `0x6553f100 VM_WARP(0x00)` for `vm.warp(1700000000)`
   - Requires huff-neo 1.7.0 or later for `hnc test`.
-- Add assertions and call helpers in `src/test.huff`, such as `ASSERT_EQ`, `CALL_FUNCTION`, `EXPECT_REVERT_CALL` and `EXPECT_CHEATCODE_ERROR`.
+- Add assertions and call helpers in `src/test.huff`, such as `ASSERT_EQ`, `CALL_FUNCTION`, `EXPECT_REVERT_CALL`, `EXPECT_CHEATCODE_ERROR` and `CALL_CHEATCODE_FROM_MEMORY`.
   - See `test/vm.t.huff` and `test/vault.t.huff` for examples.
 - Port Foundry's cheatcode tests to Huff in `test/foundry/` to check the macros against Foundry's behaviour.
 - Run the Huff tests in `test/*.t.huff` and `test/foundry/*.t.huff` in CI with `make test-huff`.
