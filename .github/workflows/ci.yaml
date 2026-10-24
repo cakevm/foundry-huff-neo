@@ -55,3 +55,8 @@ jobs:
 
       - name: Run Huff Tests
         run: make test-huff
+
+      - name: Run Huff Fork Tests
+        run: make test-huff-fork
+        env:
+          MAINNET_HTTP: ${{ secrets.MAINNET_HTTP }}

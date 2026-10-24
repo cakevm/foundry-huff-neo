@@ -1,0 +1,123 @@
+// Ported from Foundry's testdata/default/cheats/Fork.t.sol (Foundry v1.8.6, MIT OR Apache-2.0)
+// Needs MAINNET_HTTP, see the rpc_endpoints alias mainnet in foundry.toml
+// Skipped: none. The aliases mainnet and mainnet2 are both `mainnet`, and testCanAutoUpdateChainId forks
+// mainnet instead of sepolia. hnc tests have no setUp, so each test creates the forks with SET_UP.
+
+#include "../../../src/test.huff"
+
+#define function balanceOf(address) view returns (uint256)
+
+#define constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2
+// `cast index address uint 0x0000000000000000000000000000000000000000 3`: WETH's balanceOf(address(0))
+#define constant ZERO_ADDRESS_BALANCE_SLOT = 0x3617319a054d772f909f7c479a2cebe5066e836a939412e32403c99029b92eff
+#define constant TEST_VALUE_SLOT = 0x00
+// 14_608_400
+#define constant MAINBLOCK = 0xdee810
+
+/// Creates forkA at MAINBLOCK and forkB at the block before, and pushes [forkA, forkB]
+#define macro SET_UP() = takes(0) returns(2) {
+    // forkB = vm.createFork("mainnet2", mainblock - 1)
+    __RIGHTPAD(__BYTES("mainnet")) 0x07 0x01 [MAINBLOCK] sub 0x40
+    VM_CREATE_FORK_STRING_UINT256(0x04, 0x00)                                             // [forkB]
+    // forkA = vm.createFork("mainnet", mainblock)
+    __RIGHTPAD(__BYTES("mainnet")) 0x07 [MAINBLOCK] 0x40
+    VM_CREATE_FORK_STRING_UINT256(0x04, 0x00)                                             // [forkA, forkB]
+}
+
+/// Pushes WETH.balanceOf(address(0))
+#define macro WETH_BALANCE_OF_ZERO() = takes(0) returns(1) {
+    0x00 __FUNC_SIG(balanceOf) [WETH] STATICCALL_FUNCTION(0x01)
+}
+
+// ensures forks use different ids
+#define test FORK_ID_DIFFER() = {
+    SET_UP() ASSERT_NOT_EQ()                           // assert(forkA != forkB)
+}
+
+// ensures we can create and select in one step
+#define test CREATE_SELECT() = {
+    __RIGHTPAD(__BYTES("mainnet")) 0x07 0x20 VM_CREATE_SELECT_FORK(0x03, 0x00)   // [fork]
+    VM_ACTIVE_FORK(0x00) ASSERT_EQ()                   // assertEq(fork, vm.activeFork())
+}
+
+// ensures forks use different ids
+#define test CAN_SWITCH_FORKS() = {
+    SET_UP()                                           // [forkA, forkB]
+    dup1 VM_SELECT_FORK(0x00)
+    dup2 VM_SELECT_FORK(0x00)
+    dup2 VM_SELECT_FORK(0x00)
+    dup1 VM_SELECT_FORK(0x00)
+    VM_ACTIVE_FORK(0x00) ASSERT_EQ()
+    pop
+}
+
+#define test FORKS_HAVE_SEPARATED_STORAGE() = {
+    SET_UP()                                           // [forkA, forkB]
+    dup1 VM_SELECT_FORK(0x00)
+    // read state from forkA
+    WETH_BALANCE_OF_ZERO() 0x01 ASSERT_NOT_EQ()
+
+    dup2 VM_SELECT_FORK(0x00)
+    // read state from forkB
+    WETH_BALANCE_OF_ZERO()                             // [forkBbalance, forkA, forkB]
+    dup1 0x01 ASSERT_NOT_EQ()
+
+    dup2 VM_SELECT_FORK(0x00)
+
+    // modify state: vm.store(WETH, zero_address_balance_slot, bytes32(uint256(1)))
+    0x01 [ZERO_ADDRESS_BALANCE_SLOT] [WETH] VM_STORE(0x00)
+    0x01 WETH_BALANCE_OF_ZERO() ASSERT_EQ()            // "Cheatcode did not change value at the storage slot."
+
+    // switch forks and ensure the balance on forkB remains untouched
+    dup3 VM_SELECT_FORK(0x00)
+    dup1 0x01 ASSERT_NOT_EQ()
+    WETH_BALANCE_OF_ZERO() ASSERT_EQ()                 // assertEq(WETH.balanceOf(address(0)), forkBbalance)
+    pop pop
+}
+
+// testValue = 999 in setUp is the store decorator; the test contract is persistent across forks
+#[store([TEST_VALUE_SLOT], 999)]
+#define test CAN_SHARE_DATA_ACROSS_SWAPS() = {
+    SET_UP()                                           // [forkA, forkB]
+    0x03e7 [TEST_VALUE_SLOT] sload ASSERT_EQ()         // assertEq(testValue, 999)
+
+    0x012c                                             // uint256 val = 300  [val, forkA, forkB]
+    dup2 VM_SELECT_FORK(0x00)
+    dup1 0x012c ASSERT_EQ()
+
+    0x64 [TEST_VALUE_SLOT] sstore                      // testValue = 100
+
+    dup3 VM_SELECT_FORK(0x00)
+    dup1 0x012c ASSERT_EQ()
+    0x64 [TEST_VALUE_SLOT] sload ASSERT_EQ()
+
+    pop 0x63                                           // val = 99
+    0x012c [TEST_VALUE_SLOT] sstore                    // testValue = 300
+
+    dup2 VM_SELECT_FORK(0x00)
+    dup1 0x63 ASSERT_EQ()
+    0x012c [TEST_VALUE_SLOT] sload ASSERT_EQ()
+    pop pop pop
+}
+
+#define test CAN_CHANGE_CHAIN_ID() = {
+    SET_UP()                                           // [forkA, forkB]
+    dup1 VM_SELECT_FORK(0x00)
+    0x0539 VM_CHAIN_ID(0x00)                           // vm.chainId(1337)
+    chainid 0x0539 ASSERT_EQ()                         // assertEq(newChainId, block.chainid)
+    pop pop
+}
+
+// ensures forks change chain ids automatically
+#define test CAN_AUTO_UPDATE_CHAIN_ID() = {
+    chainid 0x01 ASSERT_NOT_EQ()                       // not mainnet before the fork
+    __RIGHTPAD(__BYTES("mainnet")) 0x07 0x20 VM_CREATE_SELECT_FORK(0x03, 0x00) pop
+    chainid 0x01 ASSERT_EQ()                           // assertEq(block.chainid, 1)
+}
+
+// ensures forks storage is cached at block
+#define test STORAGE_CACHING() = {
+    // vm.createSelectFork("mainnet", 19800000)
+    __RIGHTPAD(__BYTES("mainnet")) 0x07 0x012e1fc0 0x40 VM_CREATE_SELECT_FORK_STRING_UINT256(0x04, 0x00) pop
+    0x012e1fc0 number ASSERT_EQ()
+}

@@ -8,3 +8,6 @@ evm_version = 'osaka'
 
 [fuzz]
 runs = 2000
+
+[rpc_endpoints]
+mainnet = "${MAINNET_HTTP}"

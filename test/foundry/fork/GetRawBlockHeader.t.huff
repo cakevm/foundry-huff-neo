@@ -1,0 +1,16 @@
+// Ported from Foundry's testdata/default/cheats/GetRawBlockHeader.t.sol (Foundry v1.8.6, MIT OR Apache-2.0)
+// Needs MAINNET_HTTP, see the rpc_endpoints alias mainnet in foundry.toml
+// Skipped: none. The fork is pinned to block 23000000 instead of the latest block.
+
+#include "../../../src/test.huff"
+
+#define test GET_RAW_BLOCK_HEADER_WITH_FORK() = {
+    // vm.createSelectFork("mainnet", 23000000)
+    __RIGHTPAD(__BYTES("mainnet")) 0x07 0x015ef3c0 0x40 VM_CREATE_SELECT_FORK_STRING_UINT256(0x04, 0x00) pop
+
+    // keccak256(vm.getRawBlockHeader(22985278)): the bytes are at 0x40, their length at 0x20
+    0x015eba3e VM_GET_RAW_BLOCK_HEADER(0x00) pop
+    0x20 mload 0x40 sha3
+    // `cast keccak256 $(cast block 22985278 --raw)`
+    0x492419d85d2817f50577807a287742fbdcaae00ce89f2ea885e419ee4493b00f ASSERT_EQ_BYTES32()
+}

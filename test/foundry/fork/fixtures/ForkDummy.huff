@@ -1,0 +1,28 @@
+// Foundry's `DummyContract` (Fork2.t.sol).
+// Creation bytecode: hnc ForkDummy.huff -b
+
+#define function val() view returns (uint256)
+#define function noop() pure returns ()
+#define function hello() view returns (string)
+#define function set(uint256) nonpayable returns ()
+
+#define macro MAIN() = takes(0) returns(0) {
+    0x00 calldataload 0xe0 shr
+    dup1 __FUNC_SIG(val) eq val jumpi
+    dup1 __FUNC_SIG(noop) eq noop jumpi
+    dup1 __FUNC_SIG(hello) eq hello jumpi
+    dup1 __FUNC_SIG(set) eq set jumpi
+    0x00 0x00 revert
+
+    val:
+        0x00 sload 0x00 mstore 0x20 0x00 return
+    noop:
+        stop
+    hello:
+        0x20 0x00 mstore
+        0x05 0x20 mstore
+        __RIGHTPAD(__BYTES("hello")) 0x40 mstore
+        0x60 0x00 return
+    set:
+        0x04 calldataload 0x00 sstore stop
+}

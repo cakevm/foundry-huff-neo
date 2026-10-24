@@ -1,0 +1,403 @@
+// Ported from Foundry's testdata/default/cheats/Fork2.t.sol (Foundry v1.8.6, MIT OR Apache-2.0)
+// Needs MAINNET_HTTP, see the rpc_endpoints alias mainnet in foundry.toml
+// Skipped: the eleven testForkDumpState* tests, which check the account order in the JSON file of
+// vm.dumpState and need file access that foundry.toml does not grant; testRpcBlockByNumberFullReturndata
+// and testRpcTransactionByHash, which abi.decode sepolia blocks and transactions into structs. The other
+// sepolia tests (testRpcClientVersion, testRpcNetListening, testRpcChainId, testRpcNullResponse) run
+// against mainnet.
+// hnc tests have no setUp, so each test creates the forks with SET_UP. The optimism fork is a second
+// mainnet fork at another block, and mainnetFork is pinned to block 21000000 instead of the latest
+// block. testNonExistingContractRevert checks that the contract has no code on the other fork, as a
+// raw call to an account without code succeeds where Solidity's call reverts. testRpc and testRpcJson
+// inline fixtures/Rpc/balance_params.json, and testEthGetLogs the values of fixtures/Rpc/eth_getLogs.json.
+
+#include "../../../src/test.huff"
+
+#define function val() view returns (uint256)
+#define function noop() pure returns ()
+#define function hello() view returns (string)
+#define function set(uint256) nonpayable returns ()
+
+#define constant WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2
+// 21_000_000, the block of mainnetFork
+#define constant MAINNET_BLOCK = 0x01406f40
+// 20_000_000, the block of the fork that stands in for optimism
+#define constant OTHER_BLOCK = 0x01312d00
+// 20_000_000, the lower bound of the latest mainnet block
+#define constant MIN_LATEST_BLOCK = 0x01312d00
+
+/// Creates mainnetFork at MAINNET_BLOCK and optimismFork at OTHER_BLOCK, and pushes
+/// [mainnetFork, optimismFork]. Neither is selected.
+#define macro SET_UP() = takes(0) returns(2) {
+    __RIGHTPAD(__BYTES("mainnet")) 0x07 [OTHER_BLOCK] 0x40
+    VM_CREATE_FORK_STRING_UINT256(0x04, 0x00)                                 // [optimismFork]
+    __RIGHTPAD(__BYTES("mainnet")) 0x07 [MAINNET_BLOCK] 0x40
+    VM_CREATE_FORK_STRING_UINT256(0x04, 0x00)                                 // [mainnetFork, optimismFork]
+}
+
+/// Creates mainnetFork at MAINNET_BLOCK and pushes it, for tests that do not need the other fork
+#define macro MAINNET_FORK() = takes(0) returns(1) {
+    __RIGHTPAD(__BYTES("mainnet")) 0x07 [MAINNET_BLOCK] 0x40
+    VM_CREATE_FORK_STRING_UINT256(0x04, 0x00)
+}
+
+/// Deploys `DummyContract` from fixtures/ForkDummy.huff and pushes its address
+#define macro DEPLOY_DUMMY() = takes(0) returns(1) {
+    0x60788060093d393df35f3560e01c80633c6bb436146100345780635dfc2e4a14 0x00 mstore
+    0x61003d57806319ff1d211461003f57806360fe47b114610071575f5ffd5b5f54 0x20 mstore
+    0x5f5260205ff35b005b60205f5260056020527f68656c6c6f0000000000000000 0x40 mstore
+    0x0000000000000000000000000000000000000060405260605ff35b6004355f55 0x60 mstore
+    0x00 0x80 mstore
+    0x81 0x00 0x00 create
+    dup1 0x00 ASSERT_NOT_EQ()
+}
+
+/// Pushes the ABI words of ("eth_getBalance", fixtures/Rpc/balance_params.json), first on top:
+/// `["0x8D97689C9818892B700e27F316cc3E41e17fBeb9", "0x117BC09"]`, the balance at block 18332681
+#define macro BALANCE_PARAMS() = takes(0) returns(7) {
+    0x334534316531376642656239222c2022307831313742433039225d0000000000
+    0x5b22307838443937363839433938313838393242373030653237463331366363
+    0x3b
+    __RIGHTPAD(__BYTES("eth_getBalance")) 0x0e
+    0x80 0x40
+}
+
+/// Pushes the ABI words of ("mainnet", "eth_blockNumber", "[]"), first on top
+#define macro BLOCK_NUMBER_PARAMS() = takes(0) returns(9) {
+    __RIGHTPAD(__BYTES("[]")) 0x02
+    __RIGHTPAD(__BYTES("eth_blockNumber")) 0x0f
+    __RIGHTPAD(__BYTES("mainnet")) 0x07
+    0xe0 0xa0 0x60
+}
+
+/// Consumes [selector, keyLength, key, jsonSize] and calls the cheatcode `selector(string,string)`
+/// with the JSON string ABI-encoded at 0x00 in jsonSize bytes and the key of at most 32 bytes. The
+/// JSON has no fixed size, so the calldata is built at 0x4000 instead of from stack words. A failed
+/// cheatcode reverts; the result is the return data.
+#define macro CALL_JSON_KEY() = takes(4) returns(0) {
+    0xe0 shl 0x4000 mstore                   // [keyLength, key, jsonSize]
+    0x40 0x4004 mstore                       // offset of the JSON
+    dup3 0x20 add 0x4024 mstore              // offset of the key
+    0x20 dup4 sub 0x20 0x4044 mcopy          // the JSON's length and data
+    dup3 0x4024 add mstore                   // [key, jsonSize]
+    dup2 0x4044 add mstore                   // [jsonSize]
+    0x64 add                                 // [inSize]
+    0x00 0x00 swap2 0x4000 0x00 [VM_ADDRESS] gas call
+    REQUIRE_SUCCESS()
+}
+
+/* ── Fork ids and switching ── */
+
+// ensures forks use different ids
+#define test FORK_ID_DIFFER() = {
+    SET_UP() ASSERT_NOT_EQ()                 // assert(mainnetFork != optimismFork)
+}
+
+// ensures forks use different ids
+#define test CAN_SWITCH_FORKS() = {
+    SET_UP()                                 // [mainnetFork, optimismFork]
+    dup1 VM_SELECT_FORK(0x00)
+    dup1 VM_ACTIVE_FORK(0x00) ASSERT_EQ()
+    dup2 VM_SELECT_FORK(0x00)
+    dup2 VM_ACTIVE_FORK(0x00) ASSERT_EQ()
+    dup2 VM_SELECT_FORK(0x00)
+    dup2 VM_ACTIVE_FORK(0x00) ASSERT_EQ()
+    dup1 VM_SELECT_FORK(0x00)
+    VM_ACTIVE_FORK(0x00) ASSERT_EQ()
+    pop
+}
+
+#define test CAN_CREATE_SELECT() = {
+    // uint256 anotherFork = vm.createSelectFork("mainnet")
+    __RIGHTPAD(__BYTES("mainnet")) 0x07 0x20 VM_CREATE_SELECT_FORK(0x03, 0x00)
+    VM_ACTIVE_FORK(0x00) ASSERT_EQ()
+}
+
+// ensures the blob fee market of the forked block is exposed
+#define test FORK_BLOCK_BLOB_BASE_FEE() = {
+    // Mainnet block 22_000_000 (Cancun) carries 22_151_168 excess blob gas.
+    __RIGHTPAD(__BYTES("mainnet")) 0x07 0x014fb180 0x40 VM_CREATE_SELECT_FORK_STRING_UINT256(0x04, 0x00) pop
+    0x02f9 blobbasefee ASSERT_EQ()           // "blob base fee should follow the forked block header"
+}
+
+// ensures forks have different block hashes
+#define test BLOCK_NUMBERS_MISMATCH() = {
+    SET_UP()                                 // [mainnetFork, optimismFork]
+    VM_SELECT_FORK(0x00)
+    0x01 number sub blockhash                // [mainHash, optimismFork]
+    swap1 VM_SELECT_FORK(0x00)
+    0x01 number sub blockhash                // [optimismHash, mainHash]
+    ASSERT_NOT_EQ()
+}
+
+/* ── rollFork ── */
+
+// test that we can switch between forks, and "roll" blocks
+#define test CAN_ROLL_FORK() = {
+    MAINNET_FORK()                           // [mainnetFork]
+    VM_SELECT_FORK(0x00)
+    // uint256 otherMain = vm.createFork("mainnet", block.number - 1)
+    __RIGHTPAD(__BYTES("mainnet")) 0x07 0x01 number sub 0x40
+    VM_CREATE_FORK_STRING_UINT256(0x04, 0x00)                     // [otherMain]
+    dup1 VM_SELECT_FORK(0x00)
+    number                                                        // [mainBlock, otherMain]
+
+    // uint256 otherFork = vm.createFork("mainnet", 14608400)
+    __RIGHTPAD(__BYTES("mainnet")) 0x07 0xdee810 0x40
+    VM_CREATE_FORK_STRING_UINT256(0x04, 0x00)                     // [otherFork, mainBlock, otherMain]
+    VM_SELECT_FORK(0x00)
+    0xdee810 number ASSERT_EQ()
+
+    0xdee811 VM_ROLL_FORK_UINT256(0x00)      // vm.rollFork(forkedBlock + 1)
+    0xdee811 number ASSERT_EQ()
+
+    // can also roll by id
+    dup1 0x01 add dup3 VM_ROLL_FORK_UINT256_UINT256(0x00)          // vm.rollFork(otherMain, mainBlock + 1)
+    0xdee811 number ASSERT_EQ()
+
+    swap1 VM_SELECT_FORK(0x00)               // [mainBlock]
+    0x01 add number ASSERT_EQ()
+}
+
+// test that rolling a fork that is not selected drops the accounts it had loaded, so reads
+// after selecting it again come from the new block instead of the old journal
+#define test ROLL_INACTIVE_FORK_REFRESHES_LOADED_STATE() = {
+    SET_UP()                                 // [mainnetFork, optimismFork]
+    VM_SELECT_FORK(0x00)
+    number                                   // [latest, optimismFork]
+
+    // uint256 fork = vm.createSelectFork("mainnet", latest - 40)
+    __RIGHTPAD(__BYTES("mainnet")) 0x07 0x28 dup4 sub 0x40
+    VM_CREATE_SELECT_FORK_STRING_UINT256(0x04, 0x00)             // [fork, latest, optimismFork]
+    // Load the account into the fork's journal at the old block.
+    0x00 [WETH] balance ASSERT_GT()          // assertGt(staleBalance, 0)
+
+    dup3 VM_SELECT_FORK(0x00)
+    0x0a dup3 sub dup2 VM_ROLL_FORK_UINT256_UINT256(0x00)        // vm.rollFork(fork, latest - 10)
+    VM_SELECT_FORK(0x00)                     // [latest, optimismFork]
+    0x0a swap1 sub                           // [latest - 10, optimismFork]
+    dup1 number ASSERT_EQ()
+    [WETH] balance                           // [rolledBalance, latest - 10, optimismFork]
+
+    // vm.createSelectFork("mainnet", latest - 10)
+    __RIGHTPAD(__BYTES("mainnet")) 0x07 dup4 0x40
+    VM_CREATE_SELECT_FORK_STRING_UINT256(0x04, 0x00) pop
+    [WETH] balance ASSERT_EQ()               // assertEq(rolledBalance, weth.balance)
+    pop pop
+}
+
+// test that we can "roll" blocks until a transaction
+#define test CAN_ROLL_FORK_UNTIL_TRANSACTION() = {
+    // fork until previous block: vm.createSelectFork("mainnet", 16261704 - 1)
+    __RIGHTPAD(__BYTES("mainnet")) 0x07 0xf82247 0x40 VM_CREATE_SELECT_FORK_STRING_UINT256(0x04, 0x00) pop
+
+    // account that sends ether in 2 transaction before tx
+    0x0ef337a50006bbfafc 0xAe45a8240147E6179ec7c9f92c5A18F9a97B3fCA balance ASSERT_EQ()
+
+    // transfer: 0.00275 ether (0.00095 + 0.0018)
+    // newBalance = account.balance - (950391156965212 + 1822824618180000)
+    0x0679d96ddabda0 0x0360602f4eff5c add
+    0xAe45a8240147E6179ec7c9f92c5A18F9a97B3fCA balance sub      // [newBalance]
+
+    // execute transactions in block until tx
+    0x67cbad73764049e228495a3f90144aab4a37cb4b5fd697dffc234aa5ed811ace VM_ROLL_FORK_BYTES32(0x00)
+
+    // balance must be less than newBalance due to gas spent
+    0xAe45a8240147E6179ec7c9f92c5A18F9a97B3fCA balance ASSERT_LT()
+}
+
+/* ── Persistent accounts ── */
+
+/// checks that marking as persistent works
+#define test MARK_PERSISTENT() = {
+    address VM_IS_PERSISTENT(0x00) ASSERT_TRUE()
+
+    SET_UP()                                 // [mainnetFork, optimismFork]
+    dup1 VM_SELECT_FORK(0x00)
+
+    DEPLOY_DUMMY()                           // [dummy, mainnetFork, optimismFork]
+    dup1 VM_IS_PERSISTENT(0x00) ASSERT_FALSE()
+
+    0x63 __FUNC_SIG(set) dup3 CALL_FUNCTION(0x01) REQUIRE_SUCCESS()   // dummy.set(99)
+
+    dup3 VM_SELECT_FORK(0x00)
+    dup2 VM_SELECT_FORK(0x00)
+    0x63 __FUNC_SIG(val) dup3 STATICCALL_FUNCTION(0x00) ASSERT_EQ()
+    dup1 VM_MAKE_PERSISTENT_ADDRESS(0x00)
+    dup1 VM_IS_PERSISTENT(0x00) ASSERT_TRUE()
+
+    dup3 VM_SELECT_FORK(0x00)
+    // the account is now marked as persistent and the contract is persistent across swaps
+    __FUNC_SIG(hello) dup2 CALL_FUNCTION(0x00) REQUIRE_SUCCESS()
+    0x60 returndatasize ASSERT_EQ()
+    0x63 __FUNC_SIG(val) dup3 STATICCALL_FUNCTION(0x00) ASSERT_EQ()
+    pop pop pop
+}
+
+#define test NON_EXISTING_CONTRACT_REVERT() = {
+    SET_UP()                                 // [mainnetFork, optimismFork]
+    VM_SELECT_FORK(0x00)
+    DEPLOY_DUMMY()                           // [dummy, optimismFork]
+
+    // this will succeed since `dummy` is deployed on the currently active fork
+    __FUNC_SIG(hello) dup2 CALL_FUNCTION(0x00) REQUIRE_SUCCESS()
+    0x60 returndatasize ASSERT_EQ()
+
+    swap1 VM_SELECT_FORK(0x00)               // [dummy]
+    // `dummy` does not exist on the currently active fork
+    extcodesize 0x00 ASSERT_EQ()
+}
+
+/* ── eth_getLogs and rpc ── */
+
+/// Consumes [log] and checks the fields of a WETH Withdrawal log of block 17623835 against
+/// fixtures/Rpc/eth_getLogs.json
+#define macro ASSERT_WITHDRAWAL_LOG(src, txHash, txIndex, logIndex, amount) = takes(1) returns(0) {
+    [WETH] dup2 mload ASSERT_EQ_ADDRESS()                              // emitter
+    0xe4299c95a140ddad351e9831cfb16c35cc0014e8cbd8465de2e5112847d70465
+    dup2 0x60 add mload ASSERT_EQ_BYTES32()                            // blockHash
+    0x010ceb1b dup2 0x80 add mload ASSERT_EQ()                         // blockNumber
+    <txHash> dup2 0xa0 add mload ASSERT_EQ_BYTES32()                   // transactionHash
+    <txIndex> dup2 0xc0 add mload ASSERT_EQ()                          // transactionIndex
+    <logIndex> dup2 0xe0 add mload ASSERT_EQ()                         // logIndex
+    dup1 0x0100 add mload ASSERT_FALSE()                               // removed
+
+    // topics: [Withdrawal, src]
+    dup1 0x20 add mload dup2 add                                       // [topics, log]
+    0x02 dup2 mload ASSERT_EQ()
+    0x7fcf532c15f0a6db0bd6d0e038bea71d30d808c7d98cb3bf7268a95bf5081b65
+    dup2 0x20 add mload ASSERT_EQ_BYTES32()
+    <src> dup2 0x40 add mload ASSERT_EQ()
+    pop
+
+    // data: the withdrawn amount
+    dup1 0x40 add mload add                                            // [data]
+    0x20 dup2 mload ASSERT_EQ()
+    <amount> swap1 0x20 add mload ASSERT_EQ()
+}
+
+#define test ETH_GET_LOGS() = {
+    MAINNET_FORK() VM_SELECT_FORK(0x00)
+    // vm.eth_getLogs(17623835, 17623835, weth, [withdrawalTopic]), ABI-encoded at 0x00
+    0x7fcf532c15f0a6db0bd6d0e038bea71d30d808c7d98cb3bf7268a95bf5081b65 0x01 0x80
+    [WETH] 0x010ceb1b 0x010ceb1b VM_ETH_GET_LOGS(0x06, 0x00) pop
+    0x03 0x20 mload ASSERT_EQ()              // assertEq(logs.length, 3)
+
+    // logs[i] starts at 0x40 + its offset
+    0x40 mload 0x40 add
+    ASSERT_WITHDRAWAL_LOG(
+        0x7a250d5630b4cf539739df2c5dacb4c659f2488d,
+        0xa08f7b4aaa57cb2baec601ad96878d227ae3289a8dd48df98cce30c168588ce7, 0x0c, 0x42, 0x0186faccfe3e2bcc
+    )
+    0x60 mload 0x40 add
+    ASSERT_WITHDRAWAL_LOG(
+        0x2ec705d306b51e486b1bc0d6ebee708e0661add1,
+        0x2cd5355bd917ec5c28194735ad539a4cb58e4b08815a038f6e2373290caeee1d, 0x11, 0x56, 0x4befaedcfaea00
+    )
+    0x80 mload 0x40 add
+    ASSERT_WITHDRAWAL_LOG(
+        0x7a250d5630b4cf539739df2c5dacb4c659f2488d,
+        0x4e762d9a572084e0ec412ddf6c4e6d0b746b10e9714d4e786c13579e2e3c3187, 0x16, 0x68, 0x3432a29cd0ed22
+    )
+}
+
+#define test RPC() = {
+    // balance at block <https://etherscan.io/block/18332681>
+    MAINNET_FORK() VM_SELECT_FORK(0x00)
+    BALANCE_PARAMS() VM_RPC(0x07, 0x00) pop  // vm.rpc("eth_getBalance", file)
+    0x07 0x20 mload ASSERT_EQ()
+    0x10b7c11bcb51e6 0x40 mload 0xc8 shr ASSERT_EQ()   // assertEq(hex"10b7c11bcb51e6", result)
+}
+
+#define test RPC_WITH_URL() = {
+    BLOCK_NUMBER_PARAMS() VM_RPC_STRING_STRING_STRING(0x09, 0x00) pop
+    // the bytes are the big-endian block number
+    0x40 mload 0x20 mload 0x03 shl 0x0100 sub shr     // [decodedResult]
+    [MIN_LATEST_BLOCK] swap1 ASSERT_GT()
+}
+
+#define test RPC_JSON() = {
+    MAINNET_FORK() VM_SELECT_FORK(0x00)
+    BALANCE_PARAMS() VM_RPC_JSON(0x07, 0x00) pop
+    0x12 0x20 mload ASSERT_EQ()              // assertEq(result, '"0x10b7c11bcb51e6"')
+    0x2230783130623763313162636235316536220000000000000000000000000000 0x40 mload ASSERT_EQ_BYTES32()
+}
+
+#define test RPC_JSON_WITH_URL() = {
+    BLOCK_NUMBER_PARAMS() VM_RPC_JSON_STRING_STRING_STRING(0x09, 0x00) pop
+    // vm.parseJsonString(result, "$"), with the result of at most 32 bytes
+    __RIGHTPAD(__BYTES("$")) 0x01 0x40 mload 0x20 mload 0x80 0x40 VM_PARSE_JSON_STRING(0x06, 0x00) pop
+    // vm.parseUint(...)
+    0x40 mload 0x20 mload 0x20 VM_PARSE_UINT(0x03, 0x00)
+    [MIN_LATEST_BLOCK] swap1 ASSERT_GT()
+}
+
+// Verify abi.decode works for eth_chainId (simple hex scalar to uint), against mainnet.
+#define test RPC_CHAIN_ID() = {
+    __RIGHTPAD(__BYTES("[]")) 0x02
+    __RIGHTPAD(__BYTES("eth_chainId")) 0x0b
+    __RIGHTPAD(__BYTES("mainnet")) 0x07
+    0xe0 0xa0 0x60 VM_RPC_STRING_STRING_STRING(0x09, 0x00) pop
+    0x01 0x20 mload ASSERT_EQ()              // "chain ID mismatch": hex"01"
+    0x01 0x40 mload 0xf8 shr ASSERT_EQ()
+}
+
+#define test RPC_CLIENT_VERSION() = {
+    // bytes memory data = vm.rpc("mainnet", "web3_clientVersion", "[]"), which ABI-encodes a string
+    __RIGHTPAD(__BYTES("[]")) 0x02
+    __RIGHTPAD(__BYTES("web3_clientVersion")) 0x12
+    __RIGHTPAD(__BYTES("mainnet")) 0x07
+    0xe0 0xa0 0x60 VM_RPC_STRING_STRING_STRING(0x09, 0x00) pop
+    // the string starts at 0x40 + its offset
+    0x00 0x40 mload 0x40 add mload ASSERT_GT()         // "clientVersion should not be empty"
+}
+
+#define test RPC_NET_LISTENING() = {
+    // bytes memory data = vm.rpc("mainnet", "net_listening", "[]"), which ABI-encodes a bool
+    __RIGHTPAD(__BYTES("[]")) 0x02
+    __RIGHTPAD(__BYTES("net_listening")) 0x0d
+    __RIGHTPAD(__BYTES("mainnet")) 0x07
+    0xe0 0xa0 0x60 VM_RPC_STRING_STRING_STRING(0x09, 0x00) pop
+    0x20 0x20 mload ASSERT_EQ()
+    0x40 mload ASSERT_TRUE()                           // "net_listening should return true"
+}
+
+// Verify null response handling (eth_getBlockByNumber for a non-existent future block).
+#define test RPC_NULL_RESPONSE() = {
+    // vm.rpc("mainnet", "eth_getBlockByNumber", '["0xffffffffffffff", false]')
+    0x5b2230786666666666666666666666666666222c2066616c73655d0000000000 0x1b
+    __RIGHTPAD(__BYTES("eth_getBlockByNumber")) 0x14
+    __RIGHTPAD(__BYTES("mainnet")) 0x07
+    0xe0 0xa0 0x60 VM_RPC_STRING_STRING_STRING(0x09, 0x00) pop
+    0x20 0x20 mload ASSERT_EQ()              // "null should encode as bytes32"
+}
+
+#define test RPC_JSON_TRANSACTION_BY_HASH_PRESERVES_KEYS() = {
+    // vm.rpcJson("mainnet", "eth_getTransactionByHash", '["0x67cbad73...5ed811ace"]')
+    0x31616365225d0000000000000000000000000000000000000000000000000000
+    0x3461616234613337636234623566643639376466666332333461613565643831
+    0x5b22307836376362616437333736343034396532323834393561336639303134
+    0x46
+    __RIGHTPAD(__BYTES("eth_getTransactionByHash")) 0x18
+    __RIGHTPAD(__BYTES("mainnet")) 0x07
+    0xe0 0xa0 0x60 VM_RPC_JSON_STRING_STRING_STRING(0x0b, 0x00)    // [jsonSize]
+
+    // vm.parseJsonBytes32(data, ".hash")
+    dup1 __RIGHTPAD(__BYTES(".hash")) 0x05 __FUNC_SIG("parseJsonBytes32(string,string)") CALL_JSON_KEY()
+    0x67cbad73764049e228495a3f90144aab4a37cb4b5fd697dffc234aa5ed811ace
+    LAST_RETURN_WORD() ASSERT_EQ_BYTES32()   // "tx hash mismatch"
+
+    // vm.parseJsonAddress(data, ".from")
+    dup1 __RIGHTPAD(__BYTES(".from")) 0x05 __FUNC_SIG("parseJsonAddress(string,string)") CALL_JSON_KEY()
+    0x106aEe384Db47379b38f4212eB512b9c327e5F56 LAST_RETURN_WORD() ASSERT_EQ_ADDRESS()
+
+    // vm.parseJsonAddress(data, ".to")
+    dup1 __RIGHTPAD(__BYTES(".to")) 0x03 __FUNC_SIG("parseJsonAddress(string,string)") CALL_JSON_KEY()
+    0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D LAST_RETURN_WORD() ASSERT_EQ_ADDRESS()
+
+    // vm.parseJsonBytes(data, ".blockNumber") == hex"f82248"
+    __RIGHTPAD(__BYTES(".blockNumber")) 0x0c __FUNC_SIG("parseJsonBytes(string,string)") CALL_JSON_KEY()
+    0x40 0x20 0x4000 returndatacopy
+    0x03 0x4000 mload ASSERT_EQ()
+    0xf82248 0x4020 mload 0xe8 shr ASSERT_EQ()      // "tx blockNumber mismatch"
+}

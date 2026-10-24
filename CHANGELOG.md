@@ -10,6 +10,8 @@
   - See `test/vm.t.huff` and `test/vault.t.huff` for examples.
 - Port Foundry's cheatcode tests to Huff in `test/foundry/` to check the macros against Foundry's behaviour.
 - Run the Huff tests in `test/*.t.huff` and `test/foundry/*.t.huff` in CI with `make test-huff`.
+- Port Foundry's fork tests to `test/foundry/fork/`, run with `make test-huff-fork` against the RPC URL in `MAINNET_HTTP`.
+  - `foundry.toml` maps `MAINNET_HTTP` to the `mainnet` RPC alias.
 
 ## [1.1.0] - 2026-01-02
 - **Breaking**: Refactored `HuffNeoConfig` from a contract to a library with `HuffConfig` struct

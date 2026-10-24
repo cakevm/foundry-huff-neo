@@ -1,0 +1,47 @@
+// Ported from Foundry's testdata/default/cheats/RpcUrls.t.sol (Foundry v1.8.6, MIT OR Apache-2.0)
+// Needs MAINNET_HTTP, see the rpc_endpoints alias mainnet in foundry.toml
+// Skipped: none, but testCanSetAndGetURLAndAllUrls is adapted. It relies on an `rpcEnvAlias` endpoint
+// that reads RPC_ENV_ALIAS, which foundry.toml does not define, so the port checks the `mainnet` alias
+// against MAINNET_HTTP and its entry in vm.rpcUrls() instead.
+
+#include "../../../src/test.huff"
+
+/// Pushes the keccak256 of the string vm.rpcUrl("mainnet") returns, using memory from 0x00
+#define macro MAINNET_URL_HASH() = takes(0) returns(1) {
+    __RIGHTPAD(__BYTES("mainnet")) 0x07 0x20 VM_RPC_URL(0x03, 0x00) pop
+    0x20 mload 0x40 sha3
+}
+
+#define test CAN_GET_RPC_URL() = {
+    // vm.rpcUrl("mainnet")
+    __RIGHTPAD(__BYTES("mainnet")) 0x07 0x20 VM_RPC_URL(0x03, 0x00) pop
+    0x00 0x20 mload ASSERT_NOT_EQ()                    // assertTrue(bytes(url).length != 0)
+}
+
+#define test REVERTS_ON_MISSING_ENV() = {
+    // vm._expectCheatcodeRevert("invalid rpc url: rpcUrlEnv"), called directly as it is not in src/vm.huff
+    __RIGHTPAD(__BYTES("invalid rpc url: rpcUrlEnv")) 0x1a 0x20
+    __FUNC_SIG("_expectCheatcodeRevert(bytes)") [VM_ADDRESS] CALL_FUNCTION(0x03) REQUIRE_SUCCESS()
+    __RIGHTPAD(__BYTES("rpcUrlEnv")) 0x09 0x20 VM_RPC_URL(0x03, 0x00) pop
+}
+
+#define test CAN_GET_URL_AND_ALL_URLS() = {
+    MAINNET_URL_HASH()                                 // [keccak256(url)]
+
+    // assertEq(url, vm.envString("MAINNET_HTTP"))
+    __RIGHTPAD(__BYTES("MAINNET_HTTP")) 0x0c 0x20 VM_ENV_STRING_STRING(0x03, 0x00) pop
+    0x20 mload 0x40 sha3 dup2 ASSERT_EQ_BYTES32()
+
+    // string[2][] memory allUrls = vm.rpcUrls(), ABI-encoded at 0x00
+    VM_RPC_URLS(0x00) pop
+    0x01 0x20 mload ASSERT_GE()                        // assertGe(allUrls.length, 1)
+
+    // allUrls[0] == ["mainnet", url]: the element starts at 0x40 + its offset
+    0x40 mload 0x40 add                                // [element, keccak256(url)]
+    dup1 mload dup2 add                                // [alias, element, keccak256(url)]
+    dup1 mload 0x07 ASSERT_EQ()
+    0x20 add mload __RIGHTPAD(__BYTES("mainnet")) ASSERT_EQ_BYTES32()
+    dup1 0x20 add mload add                            // [urlString, keccak256(url)]
+    dup1 mload swap1 0x20 add sha3                     // [keccak256(allUrls[0][1]), keccak256(url)]
+    ASSERT_EQ_BYTES32()
+}
