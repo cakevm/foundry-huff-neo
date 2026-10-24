@@ -384,7 +384,13 @@
     0x01 0x01 0x01 0x01 VM_EXPECT_EMIT_BOOL_BOOL_BOOL_BOOL(0x00)
     EMIT_INDEXED(__EVENT_HASH(SomethingElse), 0x01)
     0x01 __FUNC_SIG("emitSomethingElse(uint256)") 0x1000 CALL_FUNCTION(0x01)
-    ASSERT_EMIT_ERROR(0x3d, __RIGHTPAD(__BYTES("SomethingElse indexed topic coun")))
+    // Foundry starts the message with the event's name when it knows the signature, or with "log",
+    // so only its end is checked: "...indexed topic count mismatch: expected 1, got 0"
+    msize returndatasize 0x00 dup3 returndatacopy  // [p, success], the revert data at p
+    swap1 ASSERT_FALSE()                           // [p]
+    dup1 0x20 add mload                            // [length, p]
+    swap1 0x20 add add mload                       // [last 32 bytes of the message]
+    0x6f756e74206d69736d617463683a20657870656374656420312c20676f742030 ASSERT_EQ()                     // "ount mismatch: expected 1, got 0"
     // The expectation stays active after the failed call, so a later call can still meet it
     __FUNC_SIG("emitIndexed()") 0x2000 CALL_FUNCTION(0x00) ASSERT_TRUE()
 }
